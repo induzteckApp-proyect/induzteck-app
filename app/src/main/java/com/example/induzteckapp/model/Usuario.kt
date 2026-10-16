@@ -1,3 +1,5 @@
+// com.example.induzteckapp/model/Usuario.kt
+
 package com.example.induzteckapp.model
 
 data class Usuario(

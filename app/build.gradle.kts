@@ -56,4 +56,7 @@ dependencies {
     //Librerias para el ciclo de vida del viewmodel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.1")
+
+    // NUEVO: Para la navegación
+    implementation("androidx.navigation:navigation-compose:2.10.2")
 }

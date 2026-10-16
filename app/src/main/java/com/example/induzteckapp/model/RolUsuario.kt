@@ -1,3 +1,5 @@
+// com.example.induzteckapp/model/RolUsuario.kt
+
 package com.example.induzteckapp.model
 
 enum class RolUsuario(

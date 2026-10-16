@@ -1,3 +1,4 @@
+// induzteckApp/FormularioScreen.kt
 
 package com.example.induzteckapp.ui.theme.screens
 
@@ -45,16 +46,19 @@ import com.example.induzteckapp.ui.theme.theme.Exito
 import com.example.induzteckapp.ui.theme.theme.ExitoFondo
 import com.example.induzteckapp.viewmodel.FormularioViewModel
 
+import com.example.induzteckapp.model.Usuario
+
 // =============================================================
-// PANTALLA PRINCIPAL
+// PANTALLA REGISTRO
 // =============================================================
+
 
 @Composable
 fun FormularioScreen(
+    correosRegistrados: Set<String> = emptySet(),
+    onRegistroExitoso: (Usuario) -> Unit,
     viewModel: FormularioViewModel = viewModel()
 ) {
-    // Observamos el estado del formulario.
-    // Compose actualizará la pantalla cuando cambie el StateFlow.
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     FormularioContent(
@@ -77,7 +81,11 @@ fun FormularioScreen(
             viewModel::onAlternarVisibilidadConfirmacion,
         onAceptaTerminos = viewModel::onAceptaTerminos,
         onLimpiar = viewModel::onLimpiar,
-        onRegistrar = viewModel::onRegistrar
+        onRegistrar = {
+            viewModel.onRegistrar(correosRegistrados)?.let { usuario ->
+                onRegistroExitoso(usuario)
+            }
+        }
     )
 }
 
@@ -469,304 +477,6 @@ private fun MensajeExito(
         }
     }
 }
-
-
-
-/*
-package com.example.induzteckapp.ui.theme.screens
-
-// com.example.induzteckapp/screens/FormularioScreen.kt
-
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.induzteckapp.R
-import com.example.induzteckapp.model.FormularioUiState
-import com.example.induzteckapp.model.NivelExperiencia
-import com.example.induzteckapp.ui.theme.components.BotonPrincipal
-import com.example.induzteckapp.ui.theme.components.BotonSecundario
-import com.example.induzteckapp.ui.theme.components.CampoContrasena
-import com.example.induzteckapp.ui.theme.components.CampoTexto
-import com.example.induzteckapp.ui.theme.components.CasillaConTexto
-import com.example.induzteckapp.ui.theme.components.GrupoRadio
-import com.example.induzteckapp.ui.theme.components.ImagenEncabezado
-import com.example.induzteckapp.ui.theme.components.InterruptorConTexto
-import com.example.induzteckapp.ui.theme.components.TarjetaSeccion
-import com.example.induzteckapp.ui.theme.theme.Dimens
-import com.example.induzteckapp.ui.theme.theme.Exito
-import com.example.induzteckapp.ui.theme.theme.ExitoFondo
-import com.example.induzteckapp.viewmodel.FormularioViewModel
-
-
-// Constructor: Instanciará la interfaz :)
-
-@Composable
-fun FormularioScreen(
-    viewModel: FormularioViewModel = viewModel() // Se cree una vez y sobreviva
-){
-
-    // Stateflow y cada vez que lo mute / redibujar pantalla
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    FormularioContent(
-
-        uiState = uiState,
-        onNombreCambia = viewModel:: onNombreCambia,
-        onCorreoCambia = viewModel:: onCorreoCambia,
-        onContrasenaCambia  = viewModel:: onContrasenaCambia,
-        onAlternarVisibilidad = viewModel:: onAlternarVisibilidad,
-        onNivelSeleccionado = viewModel:: onNivelSeleccionado,
-        onNoticiasCambia = viewModel:: onNoticiasCambia,
-        onAceptaTerminos = viewModel:: onAceptaTerminos,
-        onLimpiar = viewModel:: onLimpiar,
-        onRegistrar  = viewModel:: onRegistrar
-
-    )
-
-}
-
-
-// Esta función creará interfaz grafica:
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FormularioContent(
-
-    uiState: FormularioUiState,
-
-    // con las parentesis, indicamos que la variable esl del tipo Función
-    // Unit : equivalente a void, significa que no retorna nada
-
-    onNombreCambia: (String) -> Unit,
-    onCorreoCambia: (String) -> Unit,
-    onContrasenaCambia: (String) -> Unit,
-    onAlternarVisibilidad: () -> Unit,
-    onNivelSeleccionado: (NivelExperiencia) -> Unit,
-    onNoticiasCambia: (Boolean) -> Unit,
-    onAceptaTerminos: (Boolean) -> Unit,
-    onLimpiar: () -> Unit,
-    onRegistrar: () -> Unit
-
-){
-    // Scaffold: Nos permite organizar los elementos en pantalla:
-    // auotmaticamente dibujará un header y un footer
-    // ajustará los elementos dentro de ese panel
-
-    Scaffold(
-
-        topBar = {
-
-            TopAppBar(
-                title = { Text(stringResource(R.string.titulo_formulario)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-
-                )
-            )
-        },
-
-        containerColor = MaterialTheme.colorScheme.background
-
-    ) { innerPadding ->
-        Column(
-
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-
-        ) {
-
-            ImagenEncabezado(
-
-                imagen = R.drawable.banner_registro,
-                descripcion = stringResource(R.string.cd_banner),
-                titulo = stringResource(R.string.banner_titulo),
-                subtitulo = stringResource(R.string.banner_subtitulo),
-
-            )
-
-            Column(
-                modifier = Modifier.padding(Dimens.espacioPantalla),
-                verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)
-
-            ) {
-
-                // CARD 1 - DATOS PERSONALES
-
-                TarjetaSeccion(titulo = stringResource(R.string.seccion_datos)) {
-
-                    CampoTexto(
-
-                        valor = uiState.nombre,
-                        onValorCambia = onNombreCambia,
-                        etiqueta = stringResource(R.string.campo_nombre),
-                        icono = R.drawable.ic_persona,
-                        error = uiState.errorNombre
-
-                    )
-
-                    CampoTexto(
-
-                        valor = uiState.correo,
-                        onValorCambia = onCorreoCambia,
-                        etiqueta = stringResource(R.string.campo_correo),
-                        icono = R.drawable.ic_correo,
-                        error = uiState.errorCorreo,
-                        tipoTeclado = KeyboardType.Email
-
-                    )
-
-                    CampoContrasena(
-
-                        valor = uiState.contrasena,
-                        onValorCambia = onContrasenaCambia,
-                        etiqueta = stringResource(R.string.campo_contrasena),
-                        visible = uiState.contrasenaVisible,
-                        onAlternarVisible = onAlternarVisibilidad,
-                        error = uiState.errorContrasena
-                    )
-
-                }
-
-                // CARD 2 - PREFERENCIAS
-                TarjetaSeccion(titulo = stringResource(R.string.seccion_preferencias)) {
-
-                    Text(
-                        text = stringResource(R.string.seccion_preferencias),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
-                    GrupoRadio(
-
-                        opciones = NivelExperiencia.entries,
-                        seleccionada = uiState.nivel,
-                        onSeleccionar = onNivelSeleccionado,
-                        textoDe = {it.etiqueta}
-
-                    )
-
-                    InterruptorConTexto(
-
-                        texto = stringResource(R.string.opcion_noticias),
-                        activado = uiState.recibirNoticias,
-                        onCambio = onNoticiasCambia
-
-                    )
-                }
-
-                // Terminos y Condiciones:
-
-                Column() {
-                    CasillaConTexto(
-
-                        texto = stringResource(R.string.opcion_terminos),
-                        marcado = uiState.aceptaTerminos,
-                        onCambio = onAceptaTerminos
-                    )
-                    uiState.errorTermino?.let{mensaje ->
-                        Text(
-
-                            text = mensaje,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(start = Dimens.espacioMedio)
-
-                        )
-                    }
-                }
-
-                // Botones
-                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)) {
-
-                    BotonSecundario(
-
-                        texto = stringResource(R.string.btn_limpiar),
-                        onClick = onLimpiar,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    BotonPrincipal(
-
-                        texto = stringResource(R.string.btn_registrar),
-                        onClick = onRegistrar,
-                        icono = R.drawable.ic_check,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                if(uiState.registroExitoso){
-                    MensajeExito(uiState.nombre)
-                }
-
-            }
-        }
-    }
-
-}
-
-
-@Composable
-private fun MensajeExito(nombre : String){
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = ExitoFondo, contentColor = Exito)
-
-    ){
-        Row(
-            modifier = Modifier.padding(start = Dimens.espacioChico),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            Icon(
-
-                painter = painterResource(R.drawable.ic_check),
-                contentDescription = null,
-                tint = Exito,
-                modifier = Modifier.size(Dimens.tamanoIcono)
-            )
-
-            Text(
-
-                text = stringResource(R.string.registro_exitoso, nombre),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(start = Dimens.espacioChico)
-
-            )
-        }
-
-    }
-
-
-}
-
-
-*/
 
 
 

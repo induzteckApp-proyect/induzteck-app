@@ -1,3 +1,4 @@
+// induzteckApp/FormularioViewModel.kt
 
 package com.example.induzteckapp.viewmodel
 
@@ -8,6 +9,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+
+// nuevos imports:
+import com.example.induzteckapp.model.Usuario
+import com.example.induzteckapp.util.generarResumenContrasena
 
 class FormularioViewModel : ViewModel() {
 
@@ -325,7 +330,9 @@ class FormularioViewModel : ViewModel() {
     // EVENTO: REGISTRAR USUARIO
     // =========================================================
 
-    fun onRegistrar() {
+    fun onRegistrar(
+        correosRegistrados: Set<String> = emptySet()
+    ): Usuario? {
 
         val estado = _uiState.value
 
@@ -418,6 +425,9 @@ class FormularioViewModel : ViewModel() {
 
             !patronCorreo.matches(correoNormalizado) ->
                 "Ingrese un correo electrónico válido"
+
+            correoNormalizado.lowercase() in correosRegistrados ->
+                "Ya existe una cuenta registrada con este correo"
 
             else -> null
         }
@@ -563,134 +573,25 @@ class FormularioViewModel : ViewModel() {
                 registroExitoso = !hayErrores
             )
         }
+
+        // Si existe algún error, no se crea la cuenta.
+        if (hayErrores) {
+            return null
+        }
+
+        // Creamos la entidad Usuario a partir de los datos validados.
+        return Usuario(
+            rol = estado.rol!!,
+            rut = estado.rut.trim().uppercase(),
+            nombre = estado.nombre.trim(),
+            apellido = estado.apellido.trim().ifBlank { null },
+            correo = estado.correo.trim(),
+            telefono = estado.telefono,
+            passwordHash = generarResumenContrasena(estado.contrasena),
+            activo = true,
+            giro = estado.giro.trim().ifBlank { null },
+            contactoNombre = estado.contactoNombre.trim().ifBlank { null },
+            contactoCargo = estado.contactoCargo.trim().ifBlank { null }
+        )
     }
 }
-
-
-/*
-package com.example.induzteckapp.viewmodel
-
-import androidx.lifecycle.ViewModel
-import com.example.induzteckapp.model.FormularioUiState
-import com.example.induzteckapp.model.NivelExperiencia
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-
-class FormularioViewModel : ViewModel(){
-
-
-    // StateFlow: Tipo de dato destinado a gestionar estados.
-    // Se guarda una sola instancia del estado y se va actualizando automaticamente.
-    // Puede ser:
-
-    // 1-Privada y mutable: Se puede modificar.
-    private val _uiState = MutableStateFlow(FormularioUiState())
-
-    // _uiState: Lista mutable de estados "uiState"
-
-    // 2-Publica : Solo lectura.
-    val uiState: StateFlow<FormularioUiState> = _uiState.asStateFlow()
-
-    // uiState: variable que servirá para representar los estados del formulario de usuario
-    // dependiendo de los eventos (acciones del usuario) en la pantalla del formulario,
-    // el uiState almacenará los cambios y actualizará la pantalla automaticamente.
-
-    // === Eventos de los campos de la pantalla: === //
-
-    // Evento: acción que realiza el usuario (ejem: presionar un boton) y que desata
-    // una acción en concreta. Se deben validar.
-
-    // Evento - Cuando se cambia el nombre:
-
-    fun onNombreCambia(valor : String){
-
-        // Cada vez que ejecutamos una acción en teclado, se ejecuta esta función
-
-        _uiState.update { it.copy(nombre = valor, errorNombre = null, registroExitoso = false) }
-
-    }
-
-    fun onCorreoCambia(valor : String){
-        _uiState.update { it.copy(correo = valor, errorCorreo = null, registroExitoso = false) }
-    }
-
-    fun onContrasenaCambia(valor : String){
-        _uiState.update { it.copy(contrasena = valor, errorContrasena = null, registroExitoso = false) }
-    }
-
-    fun onAlternarVisibilidad(){
-
-        _uiState.update{it.copy(contrasenaVisible = !it.contrasenaVisible)}
-
-    }
-
-    // Eventos de los controles de seleccion:
-
-    fun onNivelSeleccionado(nivel: NivelExperiencia){
-
-        _uiState.update { it.copy(nivel = nivel) }
-    }
-
-    fun onNoticiasCambia(valor : Boolean){
-
-        _uiState.update { it.copy(recibirNoticias = valor) }
-    }
-
-    fun onAceptaTerminos(valor : Boolean){
-
-        _uiState.update { it.copy(aceptaTerminos = valor, errorTermino = null) }
-    }
-
-
-    // === Eventos de Botones === //
-
-    // Limpiar
-
-    fun onLimpiar(){
-
-        _uiState.value = FormularioUiState()
-    }
-
-    // Registrarse:
-
-    // Recuerda : Estas funciones sirven no solo para realizar la accion, sino para validarla.
-    // Por ende, pueden tener más validaciones
-    fun onRegistrar(){
-
-        val estado = _uiState.value
-
-        // validar los campos:
-
-        val errorNombre = if(estado.nombre.isBlank()) "El nombre es obligatorio" else null
-
-
-        // Para validar correo, cambialo por Regex
-        val errorCorreo = if(!estado.correo.contains("@") || !estado.correo.contains("."))
-            "Ingrese un correo valido" else null
-
-        val errorContrasena = if(estado.contrasena.length < 6) "Minimo 6 caracteres" else null
-
-        val errorTerminos = if(!estado.aceptaTerminos) "Debe aceptar terminos" else null
-
-
-        // Verificar si exsten errores
-
-        val hayErrores = listOf(errorNombre, errorCorreo, errorContrasena, errorTerminos)
-            .any{it != null}
-
-        _uiState.update {it.copy(
-            errorNombre = errorNombre,
-            errorCorreo = errorCorreo,
-            errorContrasena = errorContrasena,
-            errorTermino = errorTerminos,
-            registroExitoso = !hayErrores
-
-        ) }
-
-    }
-
-}
-
- */
