@@ -1,3 +1,5 @@
+// InduzteckApp/ui.theme/theme/Color.kt
+
 package com.example.induzteckapp.ui.theme.theme
 
 import androidx.compose.ui.graphics.Color
@@ -5,7 +7,9 @@ import androidx.compose.ui.graphics.Color
 // Colores de la app (diseño propio)
 val Primario = Color(0xFF115DA6)
 val PrimarioOscuro = Color(0xFF112F52)
-val PrimarioClaro = Color(0xFFD5F4FD)
+
+val PrimarioClaro = Color(0xFF7AB6C7)
+//val PrimarioClaro = Color(0xFFD5F4FD)
 
 val Secundario = Color(0xFF00A6A6)
 val Acento = Color(0xFFFF6B4A)

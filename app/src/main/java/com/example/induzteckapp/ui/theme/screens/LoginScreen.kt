@@ -1,7 +1,8 @@
+// induzteckApp/ui.theme/screens/LoginScreen.kt
+
 package com.example.induzteckapp.ui.theme.screens
 
 import androidx.compose.material3.ExperimentalMaterial3Api
-
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

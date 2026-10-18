@@ -1,4 +1,4 @@
-// induzteckApp/FormularioScreen.kt
+// induzteckApp/ui.theme/screens/FormularioScreen.kt
 
 package com.example.induzteckapp.ui.theme.screens
 
@@ -52,6 +52,9 @@ import com.example.induzteckapp.model.Usuario
 // PANTALLA REGISTRO
 // =============================================================
 
+
+// Hay bun defecto que noté en estas pantalla,s y es que No existe boton para retroceder. Es algo urgente a corregir
+// implementar boton de regresó implementado por el profesor en su proyecto de MiRegistro.
 
 @Composable
 fun FormularioScreen(
@@ -173,6 +176,11 @@ fun FormularioContent(
                     Text(
                         text = "Selecciona el tipo de cuenta que deseas crear.",
                         style = MaterialTheme.typography.bodyMedium
+
+                        // EN ESTE TIPO DE TEXTO HAY UN ERROR!
+                        // en el modo claro, se ven de un color celeste/morado MUUY claro
+                        // que no se ve nada. Hay que corregir TODOS los textos que usan esto
+                        // y cambiarlo por uno de los colores de la aplicación.
                     )
 
                     GrupoRadio(

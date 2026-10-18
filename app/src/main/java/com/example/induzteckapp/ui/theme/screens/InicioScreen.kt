@@ -1,3 +1,5 @@
+// induzteckApp/ui.theme/screens/InicioScreen.kt
+
 package com.example.induzteckapp.ui.theme.screens
 
 import androidx.compose.material3.ExperimentalMaterial3Api
