@@ -1,3 +1,4 @@
+// com.example.induzteckapp/model/InicioUiState.kt
 package com.example.induzteckapp.model
 
 data class InicioUiState (

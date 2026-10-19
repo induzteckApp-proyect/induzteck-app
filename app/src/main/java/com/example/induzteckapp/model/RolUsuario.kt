@@ -11,7 +11,7 @@ enum class RolUsuario(
         etiqueta = "Cliente"
     ),
     TECNICO_INGENIERO(
-        codigo = "TECNICO_INGENIERO",
+        codigo = "TECNICO",
         etiqueta = "Técnico / Ingeniero"
     )
 }

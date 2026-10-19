@@ -3,7 +3,7 @@
 package com.example.induzteckapp.model
 
 data class Usuario(
-    val idUsuario: Int? = null,
+    val idUsuario: Long? = null,
     val rol: RolUsuario,
     val rut: String,
     val nombre: String,
@@ -14,5 +14,6 @@ data class Usuario(
     val activo: Boolean = true,
     val giro: String? = null,
     val contactoNombre: String? = null,
-    val contactoCargo: String? = null
+    val contactoCargo: String? = null,
+    val avatarUri: String? = null
 )

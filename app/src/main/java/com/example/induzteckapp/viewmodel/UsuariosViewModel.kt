@@ -1,5 +1,8 @@
+// induzteckApp/UsuariosViewModel.kt
+
 package com.example.induzteckapp.viewmodel
 
+/*
 import androidx.lifecycle.ViewModel
 import com.example.induzteckapp.model.Usuario
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,3 +55,5 @@ class UsuariosViewModel : ViewModel() {
         _usuarioActual.value = null
     }
 }
+
+*/

@@ -1,6 +1,95 @@
 package com.example.induzteckapp.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.induzteckapp.ui.theme.screens.FormularioScreen
+import com.example.induzteckapp.ui.theme.screens.InicioScreen
+import com.example.induzteckapp.ui.theme.screens.LoginScreen
+import com.example.induzteckapp.ui.theme.screens.RecuperarContrasenaScreen // Asegúrate de crear esta pantalla o adaptarla
+
+@Composable
+fun AppNavegacion() {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = Ruta.Login.ruta
+    ) {
+
+        // -----------------------------------------------------
+        // LOGIN
+        // -----------------------------------------------------
+        composable(Ruta.Login.ruta) {
+            LoginScreen(
+                onLoginExitoso = {
+                    navController.navigate(Ruta.Inicio.ruta) {
+                        popUpTo(Ruta.Login.ruta) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                },
+                onIrARegistro = {
+                    navController.navigate(Ruta.Registro.ruta)
+                },
+                onIrARecuperar = {
+                    navController.navigate(Ruta.RecuperarContrasena.ruta)
+                }
+            )
+        }
+
+        // -----------------------------------------------------
+        // REGISTRO (Formulario)
+        // -----------------------------------------------------
+        composable(Ruta.Registro.ruta) {
+            FormularioScreen(
+                onRegistroExitoso = {
+                    // Regresamos al Login tras el registro exitoso en SQLite
+                    navController.popBackStack()
+                },
+                onVolver = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // -----------------------------------------------------
+        // RECUPERACIÓN DE CONTRASEÑA (HU-09)
+        // -----------------------------------------------------
+        composable(Ruta.RecuperarContrasena.ruta) {
+            RecuperarContrasenaScreen(
+                onVolverLogin = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // -----------------------------------------------------
+        // INICIO (Dashboard técnico / cliente)
+        // -----------------------------------------------------
+        composable(Ruta.Inicio.ruta) {
+            InicioScreen(
+                onCerrarSesion = {
+                    navController.navigate(Ruta.Login.ruta) {
+                        popUpTo(Ruta.Inicio.ruta) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+    }
+}
+
+
+
+/*
+package com.example.induzteckapp.navigation
+
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -100,3 +189,4 @@ fun AppNavegacion() {
         }
     }
 }
+*/
