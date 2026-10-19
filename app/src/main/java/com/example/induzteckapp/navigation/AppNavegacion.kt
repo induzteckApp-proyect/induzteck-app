@@ -7,7 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.induzteckapp.ui.theme.screens.FormularioScreen
 import com.example.induzteckapp.ui.theme.screens.InicioScreen
 import com.example.induzteckapp.ui.theme.screens.LoginScreen
-import com.example.induzteckapp.ui.theme.screens.RecuperarContrasenaScreen // Asegúrate de crear esta pantalla o adaptarla
+import com.example.induzteckapp.ui.theme.screens.RecuperarContrasenaScreen
 
 @Composable
 fun AppNavegacion() {
@@ -46,7 +46,7 @@ fun AppNavegacion() {
         composable(Ruta.Registro.ruta) {
             FormularioScreen(
                 onRegistroExitoso = {
-                    // Regresamos al Login tras el registro exitoso en SQLite
+                    // Retorna al Login tras completar el registro en SQLite
                     navController.popBackStack()
                 },
                 onVolver = {
@@ -67,7 +67,7 @@ fun AppNavegacion() {
         }
 
         // -----------------------------------------------------
-        // INICIO (Dashboard técnico / cliente)
+        // INICIO / DASHBOARD
         // -----------------------------------------------------
         composable(Ruta.Inicio.ruta) {
             InicioScreen(
@@ -83,7 +83,6 @@ fun AppNavegacion() {
         }
     }
 }
-
 
 
 /*

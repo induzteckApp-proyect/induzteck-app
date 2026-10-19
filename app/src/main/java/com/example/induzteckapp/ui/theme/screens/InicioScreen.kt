@@ -41,15 +41,14 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InicioScreen(
-    usuario: Usuario?,
+    //usuario: Usuario?,
     onCerrarSesion: () -> Unit,
     viewModel: InicioViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(usuario) {
-        viewModel.actualizarUsuario(usuario)
-    }
+    // Ya no necesitamos LaunchedEffect(usuario) porque el ViewModel
+    // carga la sesión activa automáticamente en su init { cargarUsuarioSesionActiva() }.
 
     val drawerState = rememberDrawerState(
         initialValue = DrawerValue.Closed
@@ -201,7 +200,6 @@ fun InicioScreen(
 private fun InicioScreenPreview() {
     MiRegistroTheme {
         InicioScreen(
-            usuario = null,
             onCerrarSesion = {}
         )
     }
