@@ -78,7 +78,7 @@ fun RecuperarContrasenaScreen(
             CampoContrasena(
                 valor = nuevaContrasena,
                 onValorCambia = { nuevaContrasena = it },
-                etiqueta = "Nueva contraseña (mín. 6 caracteres)",
+                etiqueta = "Nueva contraseña (mín. 8 caracteres)",
                 visible = false,
                 onAlternarVisible = {}
             )

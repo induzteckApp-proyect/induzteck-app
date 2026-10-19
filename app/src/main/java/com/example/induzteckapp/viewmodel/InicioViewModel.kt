@@ -65,9 +65,12 @@ class InicioViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /*
+
+    // ya no es necesario
     fun actualizarUsuario(usuario: Usuario?) {
         _uiState.update { it.copy(usuario = usuario) }
-    }
+    } */
 
     fun cerrarSesion() {
         preferencias.borrarSesion()
