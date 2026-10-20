@@ -1,7 +1,12 @@
-// induzteckApp/ui.theme/screens/LoginScreen.kt
+// induzteckApp/ui/theme/screens/LoginScreen.kt
 
 package com.example.induzteckapp.ui.theme.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -9,17 +14,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.induzteckapp.R
+import com.example.induzteckapp.model.RolUsuario
 import com.example.induzteckapp.model.Usuario
 import com.example.induzteckapp.ui.theme.components.BotonPrincipal
+import com.example.induzteckapp.ui.theme.components.BotonSecundario
 import com.example.induzteckapp.ui.theme.components.CampoContrasena
 import com.example.induzteckapp.ui.theme.components.CampoTexto
 import com.example.induzteckapp.ui.theme.components.ImagenEncabezado
 import com.example.induzteckapp.ui.theme.theme.Dimens
+import com.example.induzteckapp.ui.theme.theme.MiRegistroTheme
 import com.example.induzteckapp.viewmodel.LoginViewModel
 
 @Composable
@@ -83,19 +92,20 @@ private fun LoginContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .imePadding() // Solución al problema del teclado ocultando los campos inferiores
                 .verticalScroll(rememberScrollState())
                 .padding(Dimens.espacioPantalla),
             verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)
         ) {
             ImagenEncabezado(
-                imagen = R.drawable.banner_registro,
-                descripcion = "Encabezado de Induzteck",
-                titulo = "Bienvenido a Induzteck",
+                imagen = R.drawable.banner_induztek,
+                descripcion = "Encabezado de Induztek",
+                titulo = "Bienvenido a Induztek",
                 subtitulo = "Ingresa con tu cuenta para continuar"
             )
 
             Text(
-                text = "Accede a la información correspondiente a tu cuenta.",
+                text = "Accede a la información correspondiente a tu cuenta institucional o de cliente.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -103,7 +113,7 @@ private fun LoginContent(
             CampoTexto(
                 valor = correo,
                 onValorCambia = onCorreoCambia,
-                etiqueta = "Correo electrónico",
+                etiqueta = "Correo electrónico (ej: usuario@induzteck.cl)",
                 icono = R.drawable.ic_correo,
                 error = errorCorreo,
                 tipoTeclado = KeyboardType.Email
@@ -125,208 +135,60 @@ private fun LoginContent(
                 Text("¿Olvidaste tu contraseña?")
             }
 
-            if (mensajeError != null) {
-                Text(
-                    text = mensajeError,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            BotonPrincipal(
-                texto = "Iniciar sesión",
-                onClick = onIniciarSesion,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+            // Animación para el mensaje de error global
+            AnimatedVisibility(
+                visible = mensajeError != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                Text("¿Todavía no tienes cuenta?")
-                TextButton(onClick = onIrARegistro) {
-                    Text("Regístrate")
+                mensajeError?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
-        }
-    }
-}
 
-/*
-package com.example.induzteckapp.ui.theme.screens
-
-import androidx.compose.material3.ExperimentalMaterial3Api
-
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.induzteckapp.R
-import com.example.induzteckapp.model.Usuario
-import com.example.induzteckapp.ui.theme.components.BotonPrincipal
-import com.example.induzteckapp.ui.theme.components.CampoContrasena
-import com.example.induzteckapp.ui.theme.components.CampoTexto
-import com.example.induzteckapp.ui.theme.components.ImagenEncabezado
-import com.example.induzteckapp.ui.theme.theme.Dimens
-import com.example.induzteckapp.ui.theme.theme.MiRegistroTheme
-import com.example.induzteckapp.viewmodel.LoginViewModel
-
-@Composable
-fun LoginScreen(
-    usuarios: List<Usuario>,
-    onLoginExitoso: (Usuario) -> Unit,
-    onIrARegistro: () -> Unit,
-    viewModel: LoginViewModel = viewModel()
-) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    LoginContent(
-        correo = uiState.correo,
-        contrasena = uiState.contrasena,
-        contrasenaVisible = uiState.contrasenaVisible,
-        errorCorreo = uiState.errorCorreo,
-        errorContrasena = uiState.errorContrasena,
-        mensajeError = uiState.mensajeError,
-        onCorreoCambia = viewModel::onCorreoCambia,
-        onContrasenaCambia = viewModel::onContrasenaCambia,
-        onAlternarVisibilidad = viewModel::onAlternarVisibilidadContrasena,
-        onIniciarSesion = {
-            viewModel.validarCredenciales(usuarios)?.let { usuario ->
-                onLoginExitoso(usuario)
-            }
-        },
-        onIrARegistro = onIrARegistro
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LoginContent(
-    correo: String,
-    contrasena: String,
-    contrasenaVisible: Boolean,
-    errorCorreo: String?,
-    errorContrasena: String?,
-    mensajeError: String?,
-    onCorreoCambia: (String) -> Unit,
-    onContrasenaCambia: (String) -> Unit,
-    onAlternarVisibilidad: () -> Unit,
-    onIniciarSesion: () -> Unit,
-    onIrARegistro: () -> Unit
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text("Iniciar sesión")
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { innerPadding ->
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(Dimens.espacioPantalla),
-            verticalArrangement = Arrangement.spacedBy(
-                Dimens.espacioMedio
-            )
-        ) {
-            ImagenEncabezado(
-                imagen = R.drawable.banner_registro,
-                descripcion = "Encabezado de Induzteck",
-                titulo = "Bienvenido a Induzteck",
-                subtitulo = "Ingresa con tu cuenta para continuar"
-            )
-
-            Text(
-                text = "Accede a la información correspondiente a tu cuenta.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            CampoTexto(
-                valor = correo,
-                onValorCambia = onCorreoCambia,
-                etiqueta = "Correo electrónico",
-                icono = R.drawable.ic_correo,
-                error = errorCorreo,
-                tipoTeclado = KeyboardType.Email
-            )
-
-            CampoContrasena(
-                valor = contrasena,
-                onValorCambia = onContrasenaCambia,
-                etiqueta = "Contraseña",
-                visible = contrasenaVisible,
-                onAlternarVisible = onAlternarVisibilidad,
-                error = errorContrasena
-            )
-
-            if (mensajeError != null) {
-                Text(
-                    text = mensajeError,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
+            // Botón principal de acción
             BotonPrincipal(
                 texto = "Iniciar sesión",
                 onClick = onIniciarSesion,
                 modifier = Modifier.fillMaxWidth()
             )
 
+            //Spacer(modifier = Modifier.height(12.dp))
+
+            //HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            //Spacer(modifier = Modifier.height(8.dp))
+
+            // JERARQUÍA MEJORADA: Sección clara para usuarios nuevos con Botón Secundario destacado
             Text(
-                text = "¿Todavía no tienes cuenta?",
+                text = "¿Aún no tienes cuenta registrada en Induzteck?",
                 style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
-            TextButton(
+            BotonSecundario(
+                texto = "Registrar nueva cuenta",
                 onClick = onIrARegistro,
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Registrarme")
-            }
+            )
         }
     }
 }
 
+// -----------------------------------------------------
+// VISTA PREVIA (PREVIEW)
+// -----------------------------------------------------
 @Preview(showBackground = true)
 @Composable
 private fun LoginScreenPreview() {
     MiRegistroTheme {
         LoginContent(
-            correo = "",
+            correo = "tecnico@induzteck.cl",
             contrasena = "",
             contrasenaVisible = false,
             errorCorreo = null,
@@ -336,9 +198,9 @@ private fun LoginScreenPreview() {
             onContrasenaCambia = {},
             onAlternarVisibilidad = {},
             onIniciarSesion = {},
-            onIrARegistro = {}
+            onIrARegistro = {},
+            onIrARecuperar = {}
         )
     }
 }
 
-*/
