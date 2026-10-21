@@ -245,10 +245,10 @@ class InduztekDbHelper(context: Context) :
 
         // 5. Datos Semilla: Usuario Técnico de ejemplo (Password: "123456" con SHA-256)
         val hashPrueba = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"
-        db.execSQL("INSERT INTO $TABLA_USUARIO (id_rol, rut, nombre, correo, telefono, password_hash, activo) VALUES (1, '17.284.519-3', 'Matías Godoy Herrera', 'mgodoy@induztek.ejemplo', '56900000101', '$hashPrueba', 1)")
+        db.execSQL("INSERT INTO $TABLA_USUARIO (id_rol, rut, nombre, correo, telefono, password_hash, activo) VALUES (1, '17.284.519-3', 'Matías Godoy Herrera', 'tecnico@induztek.cl', '56900000101', '$hashPrueba', 1)")
 
         // 6. Datos Semilla: Cliente e Instalación (Anexo 9)
-        db.execSQL("INSERT INTO $TABLA_USUARIO (id_rol, rut, nombre, correo, telefono, password_hash, activo, giro, contacto_nombre, contacto_cargo) VALUES (2, '76.482.915-8', 'Envasadora del Pacífico S.A.', 'mfuentes@envpacifico.ejemplo', '56900000101', '$hashPrueba', 1, 'Agroindustria', 'Marcela Fuentes Rojas', 'Jefe de Planta')")
+        db.execSQL("INSERT INTO $TABLA_USUARIO (id_rol, rut, nombre, correo, telefono, password_hash, activo, giro, contacto_nombre, contacto_cargo) VALUES (2, '76.482.915-8', 'Envasadora del Pacífico S.A.', 'cliente@ejemplo.cl', '56900000101', '$hashPrueba', 1, 'Agroindustria', 'Marcela Fuentes Rojas', 'Jefe de Planta')")
         db.execSQL("INSERT INTO $TABLA_INSTALACION (id_usuario_cliente, nombre, ubicacion, id_comuna, observaciones_acceso) VALUES (2, 'Planta Lampa', 'Sector industrial', 1, 'Inducción obligatoria de 30 min')")
 
         // 7. Datos Semilla: Equipo de ejemplo (Transformador TR-01)
