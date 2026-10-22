@@ -1,3 +1,5 @@
+// com.example.induzteckapp/model/LoginUiState.kt
+
 package com.example.induzteckapp.model
 
 data class LoginUiState (
