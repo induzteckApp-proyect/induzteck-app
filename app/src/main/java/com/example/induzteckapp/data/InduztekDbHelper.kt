@@ -11,6 +11,15 @@ import android.net.Uri
 import com.example.induzteckapp.model.RolUsuario
 import com.example.induzteckapp.model.Usuario
 
+import com.example.induzteckapp.model.ClienteProtocolo
+import com.example.induzteckapp.model.Comuna
+import com.example.induzteckapp.model.Equipo
+import com.example.induzteckapp.model.Instalacion
+import com.example.induzteckapp.model.TipoEquipo
+import com.example.induzteckapp.model.TipoPrueba
+
+import android.database.sqlite.SQLiteConstraintException
+
 class InduztekDbHelper(context: Context) :
     SQLiteOpenHelper(context, NOMBRE_BD, null, VERSION_BD) {
 
@@ -1656,6 +1665,521 @@ class InduztekDbHelper(context: Context) :
             valores
         )
     }
+
+
+    // =========================================================
+    // HU-04: CONSULTAS PARA EL REGISTRO DE PROTOCOLOS
+    // =========================================================
+
+    /**
+     * Obtiene los clientes activos registrados en SQLite.
+     * No devuelve usuarios con el rol de técnico.
+     */
+    fun obtenerClientesProtocolo(): List<ClienteProtocolo> {
+        val consulta = """
+            SELECT
+                u.id_usuario,
+                u.rut,
+                u.nombre,
+                u.correo
+            FROM $TABLA_USUARIO u
+            INNER JOIN $TABLA_ROL r
+                ON r.id_rol = u.id_rol
+            WHERE r.codigo = ?
+              AND u.activo = 1
+            ORDER BY u.nombre COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            arrayOf("CLIENTE")
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        ClienteProtocolo(
+                            idUsuario = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_usuario")
+                            ),
+                            rut = cursor.getString(
+                                cursor.getColumnIndexOrThrow("rut")
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre")
+                            ),
+                            correo = cursor.getString(
+                                cursor.getColumnIndexOrThrow("correo")
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Obtiene las instalaciones asociadas a un cliente.
+     */
+    fun obtenerInstalacionesPorCliente(
+        idUsuarioCliente: Long
+    ): List<Instalacion> {
+        val consulta = """
+            SELECT
+                i.id_instalacion,
+                i.id_usuario_cliente,
+                i.nombre,
+                i.ubicacion,
+                i.id_comuna,
+                c.nombre AS nombre_comuna,
+                i.observaciones_acceso
+            FROM $TABLA_INSTALACION i
+            INNER JOIN $TABLA_COMUNA c
+                ON c.id_comuna = i.id_comuna
+            WHERE i.id_usuario_cliente = ?
+            ORDER BY i.nombre COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            arrayOf(idUsuarioCliente.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    val indiceUbicacion =
+                        cursor.getColumnIndexOrThrow("ubicacion")
+
+                    val indiceObservaciones =
+                        cursor.getColumnIndexOrThrow(
+                            "observaciones_acceso"
+                        )
+
+                    add(
+                        Instalacion(
+                            idInstalacion = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_instalacion"
+                                )
+                            ),
+                            idUsuarioCliente = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_usuario_cliente"
+                                )
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre")
+                            ),
+                            ubicacion = if (
+                                cursor.isNull(indiceUbicacion)
+                            ) {
+                                null
+                            } else {
+                                cursor.getString(indiceUbicacion)
+                            },
+                            idComuna = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_comuna")
+                            ),
+                            nombreComuna = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "nombre_comuna"
+                                )
+                            ),
+                            observacionesAcceso =
+                                if (cursor.isNull(indiceObservaciones)) {
+                                    null
+                                } else {
+                                    cursor.getString(indiceObservaciones)
+                                }
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Obtiene los equipos pertenecientes a una instalación.
+     * Incluye el nombre y la clasificación del tipo de equipo.
+     */
+    fun obtenerEquiposPorInstalacion(
+        idInstalacion: Long
+    ): List<Equipo> {
+        val consulta = """
+            SELECT
+                e.id_equipo,
+                e.id_instalacion,
+                e.tag,
+                e.id_tipo_equipo,
+                te.nombre AS nombre_tipo_equipo,
+                te.clasificacion AS clasificacion_tipo,
+                e.marca,
+                e.modelo,
+                e.numero_serie,
+                e.potencia_kva,
+                e.tensiones,
+                e.corriente,
+                e.max_contactos_uohm
+            FROM $TABLA_EQUIPO e
+            INNER JOIN $TABLA_TIPO_EQUIPO te
+                ON te.id_tipo_equipo = e.id_tipo_equipo
+            WHERE e.id_instalacion = ?
+            ORDER BY e.tag COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            arrayOf(idInstalacion.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    fun leerDoubleOpcional(columna: String): Double? {
+                        val indice =
+                            cursor.getColumnIndexOrThrow(columna)
+
+                        return if (cursor.isNull(indice)) {
+                            null
+                        } else {
+                            cursor.getDouble(indice)
+                        }
+                    }
+
+                    fun leerTextoOpcional(columna: String): String? {
+                        val indice =
+                            cursor.getColumnIndexOrThrow(columna)
+
+                        return if (cursor.isNull(indice)) {
+                            null
+                        } else {
+                            cursor.getString(indice)
+                        }
+                    }
+
+                    add(
+                        Equipo(
+                            idEquipo = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_equipo")
+                            ),
+                            idInstalacion = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_instalacion"
+                                )
+                            ),
+                            tag = cursor.getString(
+                                cursor.getColumnIndexOrThrow("tag")
+                            ),
+                            idTipoEquipo = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_tipo_equipo"
+                                )
+                            ),
+                            nombreTipoEquipo = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "nombre_tipo_equipo"
+                                )
+                            ),
+                            clasificacionTipo = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "clasificacion_tipo"
+                                )
+                            ),
+                            marca = leerTextoOpcional("marca"),
+                            modelo = leerTextoOpcional("modelo"),
+                            numeroSerie = leerTextoOpcional("numero_serie"),
+                            potenciaKva = leerDoubleOpcional("potencia_kva"),
+                            tensiones = leerDoubleOpcional("tensiones"),
+                            corriente = leerDoubleOpcional("corriente"),
+                            maxContactosUohm =
+                                leerDoubleOpcional("max_contactos_uohm")
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Obtiene las comunas disponibles, indicando su región.
+     */
+    fun obtenerComunas(): List<Comuna> {
+        val consulta = """
+            SELECT
+                c.id_comuna,
+                c.id_region,
+                c.nombre AS nombre_comuna,
+                r.nombre AS nombre_region
+            FROM $TABLA_COMUNA c
+            INNER JOIN $TABLA_REGION r
+                ON r.id_region = c.id_region
+            ORDER BY r.nombre COLLATE NOCASE,
+                     c.nombre COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            null
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        Comuna(
+                            idComuna = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_comuna")
+                            ),
+                            idRegion = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_region")
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "nombre_comuna"
+                                )
+                            ),
+                            nombreRegion = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre_region")
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Obtiene el catálogo de tipos de equipo.
+     */
+    fun obtenerTiposEquipo(): List<TipoEquipo> {
+        val consulta = """
+            SELECT id_tipo_equipo, nombre, clasificacion
+            FROM $TABLA_TIPO_EQUIPO
+            ORDER BY nombre COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            null
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        TipoEquipo(
+                            idTipoEquipo = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_tipo_equipo"
+                                )
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre")
+                            ),
+                            clasificacion = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "clasificacion"
+                                )
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Obtiene únicamente las pruebas compatibles con el tipo de equipo.
+     */
+    fun obtenerPruebasCompatibles(
+        idTipoEquipo: Long
+    ): List<TipoPrueba> {
+        val consulta = """
+            SELECT
+                tp.id_tipo_prueba,
+                tp.nombre
+            FROM $TABLA_TIPO_PRUEBA_EQUIPO c
+            INNER JOIN $TABLA_TIPO_PRUEBA tp
+                ON tp.id_tipo_prueba = c.id_tipo_prueba
+            WHERE c.id_tipo_equipo = ?
+            ORDER BY tp.nombre COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            arrayOf(idTipoEquipo.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        TipoPrueba(
+                            idTipoPrueba = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_tipo_prueba"
+                                )
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre")
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+
+    // =========================================================
+    // HU-04: CREACIÓN DE INSTALACIONES Y EQUIPOS
+    // =========================================================
+
+    /**
+     * Comprueba si un TAG ya está registrado en una instalación.
+     * El mismo TAG puede existir en instalaciones diferentes.
+     */
+    fun existeTagEnInstalacion(
+        idInstalacion: Long,
+        tag: String
+    ): Boolean {
+        return readableDatabase.rawQuery(
+            """
+                SELECT 1
+                FROM $TABLA_EQUIPO
+                WHERE id_instalacion = ?
+                  AND UPPER(TRIM(tag)) = UPPER(TRIM(?))
+                LIMIT 1
+            """.trimIndent(),
+            arrayOf(idInstalacion.toString(), tag.trim())
+        ).use { cursor ->
+            cursor.moveToFirst()
+        }
+    }
+
+    /**
+     * Crea una instalación para el cliente seleccionado.
+     * Devuelve su ID si se inserta correctamente o -1 si falla.
+     */
+    fun insertarInstalacionProtocolo(
+        idUsuarioCliente: Long,
+        nombre: String,
+        ubicacion: String?,
+        idComuna: Long,
+        observacionesAcceso: String?
+    ): Long {
+        val valores = ContentValues().apply {
+            put("id_usuario_cliente", idUsuarioCliente)
+            put("nombre", nombre.trim())
+
+            if (ubicacion.isNullOrBlank()) {
+                putNull("ubicacion")
+            } else {
+                put("ubicacion", ubicacion.trim())
+            }
+
+            put("id_comuna", idComuna)
+
+            if (observacionesAcceso.isNullOrBlank()) {
+                putNull("observaciones_acceso")
+            } else {
+                put(
+                    "observaciones_acceso",
+                    observacionesAcceso.trim()
+                )
+            }
+        }
+
+        return try {
+            writableDatabase.insert(
+                TABLA_INSTALACION,
+                null,
+                valores
+            )
+        } catch (_: SQLiteConstraintException) {
+            -1L
+        }
+    }
+
+    /**
+     * Crea un equipo en la instalación seleccionada.
+     * El TAG debe ser único dentro de esa instalación.
+     *
+     * Los datos de placa pueden quedar nulos cuando no se
+     * hayan proporcionado.
+     */
+    fun insertarEquipoProtocolo(
+        idInstalacion: Long,
+        tag: String,
+        idTipoEquipo: Long,
+        marca: String?,
+        modelo: String?,
+        numeroSerie: String?,
+        potenciaKva: Double?,
+        tensiones: Double?,
+        corriente: Double?,
+        maxContactosUohm: Double?
+    ): Long {
+
+        val tagLimpio = tag.trim()
+
+        // Comprobación previa para poder mostrar un mensaje claro.
+        if (existeTagEnInstalacion(idInstalacion, tagLimpio)) {
+            return -1L
+        }
+
+        val valores = ContentValues().apply {
+            put("id_instalacion", idInstalacion)
+            put("tag", tagLimpio)
+            put("id_tipo_equipo", idTipoEquipo)
+
+            if (marca.isNullOrBlank()) {
+                putNull("marca")
+            } else {
+                put("marca", marca.trim())
+            }
+
+            if (modelo.isNullOrBlank()) {
+                putNull("modelo")
+            } else {
+                put("modelo", modelo.trim())
+            }
+
+            if (numeroSerie.isNullOrBlank()) {
+                putNull("numero_serie")
+            } else {
+                put("numero_serie", numeroSerie.trim())
+            }
+
+            if (potenciaKva == null) {
+                putNull("potencia_kva")
+            } else {
+                put("potencia_kva", potenciaKva)
+            }
+
+            if (tensiones == null) {
+                putNull("tensiones")
+            } else {
+                put("tensiones", tensiones)
+            }
+
+            if (corriente == null) {
+                putNull("corriente")
+            } else {
+                put("corriente", corriente)
+            }
+
+            if (maxContactosUohm == null) {
+                putNull("max_contactos_uohm")
+            } else {
+                put("max_contactos_uohm", maxContactosUohm)
+            }
+        }
+
+        return try {
+            writableDatabase.insert(
+                TABLA_EQUIPO,
+                null,
+                valores
+            )
+        } catch (_: SQLiteConstraintException) {
+            // La restricción UNIQUE también protege ante
+            // un TAG duplicado entre la comprobación y el INSERT.
+            -1L
+        }
+    }
+
+
 
 }
 
