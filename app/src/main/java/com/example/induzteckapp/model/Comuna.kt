@@ -1,6 +1,12 @@
 package com.example.induzteckapp.model
 
+data class Comuna(
+    val idComuna: Long,
+    val idRegion: Long,
+    val nombre: String
+)
 
+/*
 data class Comuna(
     val idComuna: Long,
     val idRegion: Long,
@@ -14,3 +20,5 @@ data class Comuna(
             "$nombre, $nombreRegion"
         }
 }
+
+*/
