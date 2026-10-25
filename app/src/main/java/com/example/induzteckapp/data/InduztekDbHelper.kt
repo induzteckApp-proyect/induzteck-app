@@ -10,6 +10,10 @@ import android.net.Uri
 
 import com.example.induzteckapp.model.RolUsuario
 import com.example.induzteckapp.model.Usuario
+import com.example.induzteckapp.model.ClienteConsulta
+import com.example.induzteckapp.model.EquipoConsulta
+import com.example.induzteckapp.model.InstalacionConsulta
+import com.example.induzteckapp.model.ProtocoloResumen
 
 class InduztekDbHelper(context: Context) :
     SQLiteOpenHelper(context, NOMBRE_BD, null, VERSION_BD) {
@@ -1656,7 +1660,182 @@ class InduztekDbHelper(context: Context) :
             valores
         )
     }
-    // nuevo (23/10/2026)
+    // nuevo (25/10/2026)
+// 1. Obtener clientes con instalaciones y equipos usando tus constantes (CA-2.1)
+    fun obtenerClientesConActivos(filtro: String = ""): List<ClienteConsulta> {
+        val clientesMap = mutableMapOf<Int, ClienteConsulta>()
+        val db = readableDatabase
+
+        val query = """
+        SELECT DISTINCT 
+            u.id_usuario, u.nombre AS cliente_nombre, u.rut,
+            i.id_instalacion, i.nombre AS instalacion_nombre,
+            e.id_equipo, e.tag, te.nombre AS tipo_equipo
+        FROM $TABLA_USUARIO u
+        JOIN $TABLA_INSTALACION i ON u.id_usuario = i.id_usuario_cliente
+        JOIN $TABLA_EQUIPO e ON i.id_instalacion = e.id_instalacion
+        JOIN $TABLA_TIPO_EQUIPO te ON e.id_tipo_equipo = te.id_tipo_equipo
+        WHERE u.id_rol = (SELECT id_rol FROM $TABLA_ROL WHERE codigo = 'CLIENTE')
+          AND (? = '' OR u.nombre LIKE '%' || ? || '%' OR e.tag LIKE '%' || ? || '%' OR i.nombre LIKE '%' || ? || '%')
+        ORDER BY u.nombre ASC, i.nombre ASC, e.tag ASC
+    """.trimIndent()
+
+        val cursor = db.rawQuery(query, arrayOf(filtro, filtro, filtro, filtro))
+
+        if (cursor.moveToFirst()) {
+            do {
+                val idUsuario = cursor.getInt(cursor.getColumnIndexOrThrow("id_usuario"))
+                val clienteNombre = cursor.getString(cursor.getColumnIndexOrThrow("cliente_nombre"))
+                val rut = cursor.getString(cursor.getColumnIndexOrThrow("rut"))
+                val idInstalacion = cursor.getInt(cursor.getColumnIndexOrThrow("id_instalacion"))
+                val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre"))
+                val idEquipo = cursor.getInt(cursor.getColumnIndexOrThrow("id_equipo"))
+                val tag = cursor.getString(cursor.getColumnIndexOrThrow("tag"))
+                val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo"))
+
+                val cliente = clientesMap.getOrPut(idUsuario) {
+                    ClienteConsulta(
+                        idUsuario = idUsuario,
+                        nombreRazonSocial = clienteNombre,
+                        rut = rut,
+                        instalaciones = mutableListOf()
+                    )
+                }
+
+                val instalacionesList = cliente.instalaciones as MutableList<InstalacionConsulta>
+                var instalacion = instalacionesList.find { it.idInstalacion == idInstalacion }
+                if (instalacion == null) {
+                    instalacion = InstalacionConsulta(
+                        idInstalacion = idInstalacion,
+                        nombre = instalacionNombre,
+                        equipos = mutableListOf()
+                    )
+                    instalacionesList.add(instalacion)
+                }
+
+                val equiposList = instalacion.equipos as MutableList<EquipoConsulta>
+                if (equiposList.none { it.idEquipo == idEquipo }) {
+                    equiposList.add(
+                        EquipoConsulta(
+                            idEquipo = idEquipo,
+                            tag = tag,
+                            tipoEquipo = tipoEquipo,
+                            instalacionNombre = instalacionNombre // Etiqueta contextual (CA-2.2)
+                        )
+                    )
+                }
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return clientesMap.values.toList()
+    }
+
+    // 2. Obtener historial de protocolos por equipo usando tus constantes de resultados (CA-2.3)
+    fun obtenerHistorialEquipo(idEquipo: Int): List<ProtocoloResumen> {
+        val historial = mutableListOf<ProtocoloResumen>()
+        val db = readableDatabase
+
+        val query = """
+        SELECT 
+            p.id_protocolo, p.numero, p.fecha_hora_prueba,
+            ep.nombre AS estado,
+            u.nombre AS tecnico_nombre,
+            COALESCE((
+                SELECT CASE 
+                    WHEN SUM(CASE WHEN pr.id_resultado = $RESULTADO_RECHAZADO THEN 1 ELSE 0 END) > 0 THEN 'Rechazado'
+                    WHEN SUM(CASE WHEN pr.id_resultado = $RESULTADO_OBSERVADO THEN 1 ELSE 0 END) > 0 THEN 'Observado'
+                    ELSE 'Aprobado'
+                END
+                FROM $TABLA_PRUEBA pr WHERE pr.id_protocolo = p.id_protocolo
+            ), 'Aprobado') AS resultado_global
+        FROM $TABLA_PROTOCOLO p
+        JOIN $TABLA_ESTADO_PROTOCOLO ep ON p.id_estado = ep.id_estado
+        JOIN $TABLA_USUARIO u ON p.id_usuario_registra = u.id_usuario
+        WHERE p.id_equipo = ?
+        ORDER BY p.fecha_hora_prueba DESC
+    """.trimIndent()
+
+        val cursor = db.rawQuery(query, arrayOf(idEquipo.toString()))
+        if (cursor.moveToFirst()) {
+            do {
+                historial.add(
+                    ProtocoloResumen(
+                        idProtocolo = cursor.getInt(cursor.getColumnIndexOrThrow("id_protocolo")),
+                        numeroProtocolo = cursor.getString(cursor.getColumnIndexOrThrow("numero")),
+                        fechaHora = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba")),
+                        estado = cursor.getString(cursor.getColumnIndexOrThrow("estado")),
+                        resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global")),
+                        tecnicoResponsable = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre"))
+                    )
+                )
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return historial
+    }
+
+    // 3. Obtener instalaciones de un cliente específico con sus equipos (Vista Cliente HU-03)
+    fun obtenerInstalacionesCliente(idUsuarioCliente: Long, filtro: String = ""): List<InstalacionConsulta> {
+        val instalacionesMap = mutableMapOf<Int, InstalacionConsulta>()
+        val db = readableDatabase
+
+        val query = """
+            SELECT 
+                i.id_instalacion, i.nombre AS instalacion_nombre,
+                e.id_equipo, e.tag, te.nombre AS tipo_equipo
+            FROM $TABLA_INSTALACION i
+            LEFT JOIN $TABLA_EQUIPO e ON i.id_instalacion = e.id_instalacion
+            LEFT JOIN $TABLA_TIPO_EQUIPO te ON e.id_tipo_equipo = te.id_tipo_equipo
+            WHERE i.id_usuario_cliente = ?
+              AND (? = '' OR i.nombre LIKE '%' || ? || '%' OR e.tag LIKE '%' || ? || '%')
+            ORDER BY i.nombre ASC, e.tag ASC
+        """.trimIndent()
+
+        val cursor = db.rawQuery(
+            query,
+            arrayOf(
+                idUsuarioCliente.toString(),
+                filtro,
+                filtro,
+                filtro
+            )
+        )
+
+        if (cursor.moveToFirst()) {
+            do {
+                val idInstalacion = cursor.getInt(cursor.getColumnIndexOrThrow("id_instalacion"))
+                val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre"))
+
+                val instalacion = instalacionesMap.getOrPut(idInstalacion) {
+                    InstalacionConsulta(
+                        idInstalacion = idInstalacion,
+                        nombre = instalacionNombre,
+                        equipos = mutableListOf()
+                    )
+                }
+
+                if (!cursor.isNull(cursor.getColumnIndexOrThrow("id_equipo"))) {
+                    val idEquipo = cursor.getInt(cursor.getColumnIndexOrThrow("id_equipo"))
+                    val tag = cursor.getString(cursor.getColumnIndexOrThrow("tag"))
+                    val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo"))
+
+                    val equiposList = instalacion.equipos as MutableList<EquipoConsulta>
+                    if (equiposList.none { it.idEquipo == idEquipo }) {
+                        equiposList.add(
+                            EquipoConsulta(
+                                idEquipo = idEquipo,
+                                tag = tag,
+                                tipoEquipo = tipoEquipo,
+                                instalacionNombre = instalacionNombre
+                            )
+                        )
+                    }
+                }
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return instalacionesMap.values.toList()
+    }
 
 }
 
