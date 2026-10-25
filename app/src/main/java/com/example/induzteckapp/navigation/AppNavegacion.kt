@@ -16,6 +16,7 @@ import com.example.induzteckapp.ui.theme.screens.CrearProtocoloScreen
 import com.example.induzteckapp.ui.theme.screens.ListaClientesScreen
 import com.example.induzteckapp.ui.theme.screens.ListaInstalacionesScreen
 import com.example.induzteckapp.ui.theme.screens.ListaBorradoresScreen
+import com.example.induzteckapp.ui.theme.screens.HistorialProtocolosScreen
 @Composable
 fun AppNavegacion() {
     val navController = rememberNavController()
@@ -83,8 +84,13 @@ fun AppNavegacion() {
             CrearProtocoloScreen(
                 onVolver = { navController.popBackStack() },
                 onIrABorradores = { navController.navigate(Ruta.ListaBorradores.ruta) },
+                onIrAHistorial = { navController.navigate(Ruta.HistorialProtocolos.ruta) },
                 idBorrador = entrada.arguments?.getLong("borradorId") ?: -1L
             )
+        }
+
+        composable(Ruta.HistorialProtocolos.ruta) {
+            HistorialProtocolosScreen(onVolver = { navController.popBackStack() })
         }
 
         composable(Ruta.ListaBorradores.ruta) {

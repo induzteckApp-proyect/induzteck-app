@@ -289,7 +289,11 @@ class CrearProtocoloViewModel(
 
     fun seleccionarTipoEquipo(tipo: TipoEquipo) {
         _uiState.update {
-            it.copy(tipoEquipoSeleccionado = tipo, mensajeError = null)
+            it.copy(
+                tipoEquipoSeleccionado = tipo,
+                maxContactosUohm = if (requiereResistenciaMaxima(tipo)) it.maxContactosUohm else "",
+                mensajeError = null
+            )
         }
     }
 
@@ -352,12 +356,18 @@ class CrearProtocoloViewModel(
             null
         }
 
+        val requiereMaxContactos = requiereResistenciaMaxima(tipo)
         val maxContactos = convertirNumeroOpcional(
             estado.maxContactosUohm,
             "resistencia máxima de contactos"
         ) ?: run {
             if (estado.maxContactosUohm.isNotBlank()) return
             null
+        }
+
+        if (requiereMaxContactos && (maxContactos == null || maxContactos <= 0.0)) {
+            mostrarError("Para un interruptor o una celda de MT, la resistencia máxima de contactos indicada en la placa es obligatoria y debe ser mayor que cero.")
+            return
         }
 
         if (listOfNotNull(potencia, tensiones, corriente, maxContactos).any { it < 0 }) {
@@ -439,6 +449,11 @@ class CrearProtocoloViewModel(
                 _uiState.update { it.copy(guardando = false) }
             }
         }
+    }
+
+    private fun requiereResistenciaMaxima(tipo: TipoEquipo): Boolean {
+        val texto = (tipo.nombre + " " + tipo.clasificacion).lowercase(Locale.ROOT)
+        return "interruptor" in texto || "celda" in texto
     }
 
     fun seleccionarEquipo(equipo: Equipo) {
@@ -544,7 +559,7 @@ class CrearProtocoloViewModel(
         val temperatura = decimalValido(estado.temperaturaC) ?: return
         val humedad = decimalValido(estado.humedadPct) ?: return
         val equipo = estado.equipoSeleccionado ?: return
-        if (humedad !in 0.0..100.0 || creandoBorrador || estado.idProtocoloBorrador != null) return
+        if (temperatura !in -10.0..60.0 || humedad !in 0.0..100.0 || creandoBorrador || estado.idProtocoloBorrador != null) return
         val userId = preferencias.leerSesion()
         if (userId <= 0L) return
         creandoBorrador = true
@@ -590,8 +605,8 @@ class CrearProtocoloViewModel(
                 }
                 val temperatura = decimalValido(estado.temperaturaC)
                 val humedad = decimalValido(estado.humedadPct)
-                if (temperatura == null) {
-                    mostrarError("Ingresa una temperatura válida usando punto decimal.")
+                if (temperatura == null || temperatura !in -10.0..60.0) {
+                    mostrarError("La temperatura debe ser un número entre -10 y 60 °C.")
                     return
                 }
                 if (humedad == null || humedad !in 0.0..100.0) {
@@ -776,15 +791,17 @@ class CrearProtocoloViewModel(
                         )
                     }
                 } else {
-                    val resultadoGlobal = withContext(Dispatchers.IO) {
+                    val resumen = withContext(Dispatchers.IO) {
                         dbHelper.finalizarBorradorProtocolo(idBorrador)
-                        dbHelper.obtenerResultadoGlobalProtocolo(idBorrador)
+                        dbHelper.obtenerResultadoGlobalProtocolo(idBorrador) to
+                                dbHelper.obtenerResumenPruebasProtocolo(idBorrador)
                     }
-                    val resumenGlobal = resultadoGlobal?.let { nombreResultado(it) } ?: "Sin resultado"
+                    val resumenGlobal = resumen.first?.let { nombreResultado(it) } ?: "Sin resultado"
                     _uiState.update {
                         it.copy(
                             pruebasCompletadas = completadas,
                             elementosCompletados = elementosActualizados,
+                            resumenResultados = resumen.second,
                             guardando = false,
                             protocoloFinalizado = true,
                             mensajeExito = "Todas las pruebas fueron guardadas. Protocolo registrado en terreno. Resultado global: $resumenGlobal.",
@@ -809,8 +826,7 @@ class CrearProtocoloViewModel(
         val aislacion = "aislación" in nombrePrueba || "aislacion" in nombrePrueba
         return when {
             aislacion && "transformador" in tipoEquipo -> listOf("AT-BT", "AT-T", "BT-T")
-            aislacion && ("cable" in tipoEquipo) -> listOf("Fase A", "Fase B", "Fase C")
-            aislacion && ("interruptor" in tipoEquipo || "celda" in tipoEquipo) -> listOf("Fase A", "Fase B", "Fase C")
+            aislacion && "cable" in tipoEquipo -> listOf("Fase A", "Fase B", "Fase C")
             "contacto" in nombrePrueba -> listOf("Polo 1", "Polo 2", "Polo 3")
             else -> emptyList()
         }
@@ -824,7 +840,8 @@ class CrearProtocoloViewModel(
         val nombre = estado.pruebaSeleccionada?.nombre.orEmpty().lowercase(Locale.ROOT)
         if ("aislación" in nombre || "aislacion" in nombre) {
             val uno = m["LEC_1MIN"] ?: return InduztekDbHelper.RESULTADO_RECHAZADO
-            val diez = m["LEC_10MIN"] ?: return InduztekDbHelper.RESULTADO_RECHAZADO
+            val diez = m["LEC_10MIN"]
+            if (diez == null) return estado.resultadoManual
             if (uno < 100.0) return InduztekDbHelper.RESULTADO_RECHAZADO
             val ip = diez / uno
             return when {
@@ -934,7 +951,8 @@ class CrearProtocoloViewModel(
                 val resultadoRecuperado = if (finalizarAlRecuperar) {
                     withContext(Dispatchers.IO) {
                         dbHelper.finalizarBorradorProtocolo(idProtocolo)
-                        dbHelper.obtenerResultadoGlobalProtocolo(idProtocolo)
+                        dbHelper.obtenerResultadoGlobalProtocolo(idProtocolo) to
+                                dbHelper.obtenerResumenPruebasProtocolo(idProtocolo)
                     }
                 } else null
                 val clientesActuales = withContext(Dispatchers.IO) { dbHelper.obtenerClientesProtocolo() }
@@ -963,13 +981,14 @@ class CrearProtocoloViewModel(
                         elementosCompletados = elementosCargados,
                         idProtocoloBorrador = detalle.idProtocolo,
                         protocoloFinalizado = finalizarAlRecuperar,
+                        resumenResultados = resultadoRecuperado?.second.orEmpty(),
                         temperaturaC = detalle.temperaturaC.toString(),
                         humedadPct = detalle.humedadPct.toString(),
                         parametrosPrueba = emptyList(),
                         mediciones = emptyMap(),
                         cargando = false,
                         mensajeExito = if (finalizarAlRecuperar) {
-                            "El borrador ya tenía todas las pruebas completas. Se confirmó su estado REGISTRADO_TERRENO. Resultado global: ${resultadoRecuperado?.let { nombreResultado(it) } ?: "Sin resultado"}."
+                            "El borrador ya tenía todas las pruebas completas. Se confirmó su estado REGISTRADO_TERRENO. Resultado global: ${resultadoRecuperado?.first?.let { nombreResultado(it) } ?: "Sin resultado"}."
                         } else {
                             "Borrador recuperado. Las pruebas ya guardadas se conservan; continúa con las pendientes."
                         }

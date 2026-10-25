@@ -12,6 +12,7 @@ sealed class Ruta(val ruta: String) {
         fun recuperar(id: Long) = "crear_protocolo?borradorId=$id"
     }
     data object ListaBorradores : Ruta("lista_borradores")
+    data object HistorialProtocolos : Ruta("historial_protocolos")
 
     data object ListaClientes : Ruta("lista_clientes")  // Vista extendida (Técnico)
 
