@@ -250,7 +250,7 @@ fun EquipoClienteCardItem(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Nº Protocolo: ${protocolo.numeroProtocolo}",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -260,18 +260,41 @@ fun EquipoClienteCardItem(
                                     text = "Fecha: ${protocolo.fechaHora} | Técnico: ${protocolo.tecnicoResponsable}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
-                                Text(
-                                    text = "Estado: ${protocolo.estado}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
-                            ResultadoClienteBadge(resultado = protocolo.resultadoGlobal)
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                EstadoFormalizacionBadge(estado = protocolo.estado)
+                                ResultadoClienteBadge(resultado = protocolo.resultadoGlobal)
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun EstadoFormalizacionBadge(estado: String) {
+    val (color, text) = if (estado == "Formalizado") {
+        Color(0xFF2E7D32) to "Formalizado"
+    } else {
+        Color(0xFFED6C02) to "Pendiente de formalización"
+    }
+
+    Surface(
+        color = color.copy(alpha = 0.15f),
+        shape = MaterialTheme.shapes.extraSmall,
+        border = BorderStroke(1.dp, color)
+    ) {
+        Text(
+            text = text,
+            color = color,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
     }
 }
 

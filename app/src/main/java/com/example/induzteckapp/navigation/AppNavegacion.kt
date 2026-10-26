@@ -6,6 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.example.induzteckapp.ui.theme.screens.FormularioScreen
 import com.example.induzteckapp.ui.theme.screens.InicioScreen
 import com.example.induzteckapp.ui.theme.screens.LoginScreen
@@ -13,6 +15,7 @@ import com.example.induzteckapp.ui.theme.screens.RecuperarContrasenaScreen
 import com.example.induzteckapp.ui.theme.screens.CrearProtocoloScreen
 import com.example.induzteckapp.ui.theme.screens.ListaClientesScreen
 import com.example.induzteckapp.ui.theme.screens.ListaInstalacionesScreen
+import com.example.induzteckapp.ui.theme.screens.DetalleRespaldoDigitalScreen
 @Composable
 fun AppNavegacion() {
     val navController = rememberNavController()
@@ -85,10 +88,27 @@ fun AppNavegacion() {
         // -----------------------------------------------------
         composable(Ruta.ListaInstalaciones.ruta) {
             ListaInstalacionesScreen(
-                onVolver = { navController.popBackStack() }
+                onVolver = { navController.popBackStack() },
+                onProtocoloClick = { idProtocolo ->
+                    navController.navigate(Ruta.DetalleRespaldo.construir(idProtocolo))
+                }
             )
         }
 
+        composable(
+            route = Ruta.DetalleRespaldo.ruta,
+            arguments = listOf(navArgument("idProtocolo") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val idProtocolo = backStackEntry.arguments?.getInt("idProtocolo")
+            if (idProtocolo != null) {
+                DetalleRespaldoDigitalScreen(
+                    idProtocolo = idProtocolo,
+                    onVolver = { navController.popBackStack() }
+                )
+            } else {
+                navController.popBackStack()
+            }
+        }
 
     }
 }

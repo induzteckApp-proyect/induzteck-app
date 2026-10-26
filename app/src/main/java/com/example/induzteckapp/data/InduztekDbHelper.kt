@@ -13,7 +13,9 @@ import com.example.induzteckapp.model.Usuario
 import com.example.induzteckapp.model.ClienteConsulta
 import com.example.induzteckapp.model.EquipoConsulta
 import com.example.induzteckapp.model.InstalacionConsulta
+import com.example.induzteckapp.model.ProtocoloDetalle
 import com.example.induzteckapp.model.ProtocoloResumen
+import com.example.induzteckapp.model.PruebaDetalle
 
 class InduztekDbHelper(context: Context) :
     SQLiteOpenHelper(context, NOMBRE_BD, null, VERSION_BD) {
@@ -1741,7 +1743,7 @@ class InduztekDbHelper(context: Context) :
             ep.nombre AS estado,
             u.nombre AS tecnico_nombre,
             COALESCE((
-                SELECT CASE 
+                SELECT CASE
                     WHEN SUM(CASE WHEN pr.id_resultado = $RESULTADO_RECHAZADO THEN 1 ELSE 0 END) > 0 THEN 'Rechazado'
                     WHEN SUM(CASE WHEN pr.id_resultado = $RESULTADO_OBSERVADO THEN 1 ELSE 0 END) > 0 THEN 'Observado'
                     ELSE 'Aprobado'
@@ -1780,7 +1782,7 @@ class InduztekDbHelper(context: Context) :
         val db = readableDatabase
 
         val query = """
-            SELECT 
+            SELECT
                 i.id_instalacion, i.nombre AS instalacion_nombre,
                 e.id_equipo, e.tag, te.nombre AS tipo_equipo
             FROM $TABLA_INSTALACION i
@@ -1835,6 +1837,174 @@ class InduztekDbHelper(context: Context) :
         }
         cursor.close()
         return instalacionesMap.values.toList()
+    }
+
+    // 4. Obtener historial de protocolos exclusivo para el Cliente (HU-03, RN-17 / CA-3.2)
+    // Excluye BORRADOR y ANULADO. Mapea la etiqueta 'Pendiente de formalización' para 'Registrado en terreno' u 'Observado'.
+    fun obtenerHistorialEquipoCliente(idEquipo: Int): List<ProtocoloResumen> {
+        val historial = mutableListOf<ProtocoloResumen>()
+        val db = readableDatabase
+
+        val query = """
+            SELECT
+                p.id_protocolo, p.numero, p.fecha_hora_prueba,
+                ep.codigo AS estado_codigo, ep.nombre AS estado_nombre,
+                u.nombre AS tecnico_nombre,
+                COALESCE((
+                    SELECT CASE
+                        WHEN SUM(CASE WHEN pr.id_resultado = $RESULTADO_RECHAZADO THEN 1 ELSE 0 END) > 0 THEN 'Rechazado'
+                        WHEN SUM(CASE WHEN pr.id_resultado = $RESULTADO_OBSERVADO THEN 1 ELSE 0 END) > 0 THEN 'Observado'
+                        ELSE 'Aprobado'
+                    END
+                    FROM $TABLA_PRUEBA pr WHERE pr.id_protocolo = p.id_protocolo
+                ), 'Aprobado') AS resultado_global
+            FROM $TABLA_PROTOCOLO p
+            JOIN $TABLA_ESTADO_PROTOCOLO ep ON p.id_estado = ep.id_estado
+            JOIN $TABLA_USUARIO u ON p.id_usuario_registra = u.id_usuario
+            WHERE p.id_equipo = ?
+              AND ep.codigo NOT IN ('BORRADOR', 'ANULADO')
+            ORDER BY p.fecha_hora_prueba DESC
+        """.trimIndent()
+
+        val cursor = db.rawQuery(query, arrayOf(idEquipo.toString()))
+        if (cursor.moveToFirst()) {
+            do {
+                val estadoCodigo = cursor.getString(cursor.getColumnIndexOrThrow("estado_codigo"))
+                val estadoEtiqueta = if (estadoCodigo == "FORMALIZADO") {
+                    "Formalizado"
+                } else {
+                    "Pendiente de formalización"
+                }
+
+                historial.add(
+                    ProtocoloResumen(
+                        idProtocolo = cursor.getInt(cursor.getColumnIndexOrThrow("id_protocolo")),
+                        numeroProtocolo = cursor.getString(cursor.getColumnIndexOrThrow("numero")),
+                        fechaHora = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba")),
+                        estado = estadoEtiqueta,
+                        resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global")),
+                        tecnicoResponsable = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre"))
+                    )
+                )
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return historial
+    }
+
+    // 5. Obtener detalle consolidado para la vista "Detalle del Respaldo Digital" (HU-03)
+    fun obtenerDetalleProtocolo(idProtocolo: Int): ProtocoloDetalle? {
+        val db = readableDatabase
+
+        val queryCabecera = """
+            SELECT
+                p.id_protocolo, p.numero, p.fecha_hora_prueba, p.observaciones,
+                p.temperatura_c, p.humedad_pct,
+                ep.codigo AS estado_codigo, ep.nombre AS estado_nombre,
+                u.nombre AS tecnico_nombre,
+                cli.nombre AS cliente_nombre,
+                i.nombre AS instalacion_nombre,
+                e.tag AS equipo_tag, te.nombre AS tipo_equipo,
+                COALESCE((
+                    SELECT CASE
+                        WHEN SUM(CASE WHEN pr.id_resultado = $RESULTADO_RECHAZADO THEN 1 ELSE 0 END) > 0 THEN 'Rechazado'
+                        WHEN SUM(CASE WHEN pr.id_resultado = $RESULTADO_OBSERVADO THEN 1 ELSE 0 END) > 0 THEN 'Observado'
+                        ELSE 'Aprobado'
+                    END
+                    FROM $TABLA_PRUEBA pr WHERE pr.id_protocolo = p.id_protocolo
+                ), 'Aprobado') AS resultado_global
+            FROM $TABLA_PROTOCOLO p
+            JOIN $TABLA_ESTADO_PROTOCOLO ep ON p.id_estado = ep.id_estado
+            JOIN $TABLA_USUARIO u ON p.id_usuario_registra = u.id_usuario
+            JOIN $TABLA_EQUIPO e ON p.id_equipo = e.id_equipo
+            JOIN $TABLA_TIPO_EQUIPO te ON e.id_tipo_equipo = te.id_tipo_equipo
+            JOIN $TABLA_INSTALACION i ON e.id_instalacion = i.id_instalacion
+            JOIN $TABLA_USUARIO cli ON i.id_usuario_cliente = cli.id_usuario
+            WHERE p.id_protocolo = ?
+        """.trimIndent()
+
+        val cursor = db.rawQuery(queryCabecera, arrayOf(idProtocolo.toString()))
+        if (!cursor.moveToFirst()) {
+            cursor.close()
+            return null
+        }
+
+        val numero = cursor.getString(cursor.getColumnIndexOrThrow("numero"))
+        val fechaHora = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba"))
+        val observaciones = cursor.getString(cursor.getColumnIndexOrThrow("observaciones")) ?: ""
+        val temp = cursor.getString(cursor.getColumnIndexOrThrow("temperatura_c")) ?: "20"
+        val hum = cursor.getString(cursor.getColumnIndexOrThrow("humedad_pct")) ?: "45"
+        val estadoCodigo = cursor.getString(cursor.getColumnIndexOrThrow("estado_codigo"))
+        val tecnicoNombre = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre"))
+        val clienteNombre = cursor.getString(cursor.getColumnIndexOrThrow("cliente_nombre"))
+        val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre"))
+        val equipoTag = cursor.getString(cursor.getColumnIndexOrThrow("equipo_tag"))
+        val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo"))
+        val resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global"))
+        cursor.close()
+
+        val estadoEtiqueta = if (estadoCodigo == "FORMALIZADO") {
+            "Formalizado"
+        } else {
+            "Pendiente de formalización"
+        }
+
+        val pruebasList = mutableListOf<PruebaDetalle>()
+        val queryPruebas = """
+            SELECT
+                pr.id_prueba, tp.nombre AS tipo_prueba, pr.elemento, pr.momento,
+                COALESCE((
+                    SELECT GROUP_CONCAT(m.valor, ', ')
+                    FROM $TABLA_MEDICION m
+                    WHERE m.id_prueba = pr.id_prueba
+                ), '-') AS valor_medido,
+                CASE pr.id_resultado
+                    WHEN $RESULTADO_APROBADO THEN 'Aprobado'
+                    WHEN $RESULTADO_OBSERVADO THEN 'Observado'
+                    ELSE 'Rechazado'
+                END AS resultado
+            FROM $TABLA_PRUEBA pr
+            JOIN $TABLA_TIPO_PRUEBA tp ON pr.id_tipo_prueba = tp.id_tipo_prueba
+            WHERE pr.id_protocolo = ?
+            ORDER BY pr.id_prueba ASC
+        """.trimIndent()
+
+        val cursorPruebas = db.rawQuery(queryPruebas, arrayOf(idProtocolo.toString()))
+        if (cursorPruebas.moveToFirst()) {
+            do {
+                val valMedido = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("valor_medido")) ?: "-"
+                pruebasList.add(
+                    PruebaDetalle(
+                        idPrueba = cursorPruebas.getInt(cursorPruebas.getColumnIndexOrThrow("id_prueba")),
+                        tipoPruebaNombre = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("tipo_prueba")),
+                        elemento = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("elemento")),
+                        momento = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("momento")),
+                        valorMedido = valMedido,
+                        unidadMedida = "MΩ",
+                        resultado = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("resultado"))
+                    )
+                )
+            } while (cursorPruebas.moveToNext())
+        }
+        cursorPruebas.close()
+
+        return ProtocoloDetalle(
+            idProtocolo = idProtocolo,
+            numeroProtocolo = numero,
+            fechaHora = fechaHora,
+            estadoCodigo = estadoCodigo,
+            estadoEtiqueta = estadoEtiqueta,
+            resultadoGlobal = resultadoGlobal,
+            tecnicoResponsable = tecnicoNombre,
+            clienteNombre = clienteNombre,
+            instalacionNombre = instalacionNombre,
+            equipoTag = equipoTag,
+            tipoEquipo = tipoEquipo,
+            temperatura = "$temp °C",
+            humedad = "$hum %",
+            observaciones = observaciones,
+            pruebas = pruebasList
+        )
     }
 
 }

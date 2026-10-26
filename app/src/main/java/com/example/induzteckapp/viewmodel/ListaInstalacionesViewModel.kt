@@ -58,10 +58,10 @@ class ListaInstalacionesViewModel(application: Application) : AndroidViewModel(a
         }
     }
 
-    // Alterna la expansión del equipo y realiza la carga diferida del historial de protocolos
+    // Alterna la expansión del equipo y realiza la carga diferida del historial de protocolos exclusivo cliente (HU-03)
     fun toggleEquipoExpansion(idInstalacion: Int, idEquipo: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            val historial = dbHelper.obtenerHistorialEquipo(idEquipo)
+            val historial = dbHelper.obtenerHistorialEquipoCliente(idEquipo)
             _instalacionesState.value = _instalacionesState.value.map { instalacion ->
                 if (instalacion.idInstalacion == idInstalacion) {
                     val equiposActualizados = instalacion.equipos.map { equipo ->

@@ -12,4 +12,7 @@ sealed class Ruta(val ruta: String) {
     data object ListaClientes : Ruta("lista_clientes")  // Vista extendida (Técnico)
 
     data object ListaInstalaciones : Ruta("lista_instalaciones") // Vista extendida (Cliente)
+    data object DetalleRespaldo : Ruta("detalle_respaldo/{idProtocolo}") {
+        fun construir(idProtocolo: Int): String = "detalle_respaldo/$idProtocolo"
+    }
 }
