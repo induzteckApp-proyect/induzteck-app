@@ -86,7 +86,7 @@ fun ListaClientesScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // CA-2.1: Barra de búsqueda en tiempo real para TAG, Cliente o Instalación
+            
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
@@ -97,7 +97,7 @@ fun ListaClientesScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Lista desplegable de clientes
+            
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(clientes, key = { it.idUsuario }) { cliente ->
                     ClienteCardItem(
@@ -204,7 +204,7 @@ fun EquipoCardItem(
                         text = "TAG: ${equipo.tag} (${equipo.tipoEquipo})",
                         style = MaterialTheme.typography.titleSmall
                     )
-                    // CA-2.2: Etiqueta contextual con la ubicación/instalación
+                    
                     AssistChip(
                         onClick = { },
                         label = { Text("Ubicación: ${equipo.instalacionNombre}") }
@@ -216,7 +216,7 @@ fun EquipoCardItem(
                 )
             }
 
-            // CA-2.3: Historial desplegable de pruebas del equipo
+            
             if (equipo.isExpanded) {
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider()
@@ -281,13 +281,13 @@ fun ResultadoBadge(resultado: String) {
 
 
 
-// 1. Preview de la pantalla completa en modo de vista previa
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ListaClientesScreenPreview() {
     MaterialTheme {
         Surface {
-            // Se renderiza con una lista de datos simulados
+            
             val clienteEjemplo = ClienteConsulta(
                 idUsuario = 1,
                 nombreRazonSocial = "Envasadora del Pacífico S.A.",
@@ -354,7 +354,7 @@ fun ListaClientesScreenPreview() {
     }
 }
 
-// 2. Preview específico para verificar los tres tipos de badges de resultado (CA-2.3, RN-10)
+
 @Preview(showBackground = true)
 @Composable
 fun ResultadoBadgesPreview() {

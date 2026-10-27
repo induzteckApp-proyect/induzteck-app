@@ -90,7 +90,7 @@ private fun LoginContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .imePadding() // Solución al problema del teclado ocultando los campos inferiores
+                .imePadding() 
                 .verticalScroll(rememberScrollState())
                 .padding(Dimens.espacioPantalla),
             verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)
@@ -133,7 +133,7 @@ private fun LoginContent(
                 Text("¿Olvidaste tu contraseña?")
             }
 
-            // Animación para el mensaje de error global
+            
             AnimatedVisibility(
                 visible = mensajeError != null,
                 enter = fadeIn() + expandVertically(),
@@ -148,20 +148,20 @@ private fun LoginContent(
                 }
             }
 
-            // Botón principal de acción
+            
             BotonPrincipal(
                 texto = "Iniciar sesión",
                 onClick = onIniciarSesion,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            //Spacer(modifier = Modifier.height(12.dp))
+            
 
-            //HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            
 
-            //Spacer(modifier = Modifier.height(8.dp))
+            
 
-            // JERARQUÍA MEJORADA: Sección clara para usuarios nuevos con Botón Secundario destacado
+            
             Text(
                 text = "¿Aún no tienes cuenta registrada en Induzteck?",
                 style = MaterialTheme.typography.bodyMedium,

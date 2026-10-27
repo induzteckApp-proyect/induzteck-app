@@ -1,4 +1,4 @@
-// com.example.induzteckapp/data/InduztekPreferencias
+
 package com.example.induzteckapp.data
 
 import android.content.Context

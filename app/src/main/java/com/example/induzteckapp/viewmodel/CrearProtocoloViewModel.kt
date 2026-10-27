@@ -1,4 +1,4 @@
-// CrearProtocoloViewModel
+
 
 package com.example.induzteckapp.viewmodel
 
@@ -35,8 +35,8 @@ class CrearProtocoloViewModel(
 
     private val dbHelper = InduztekDbHelper(application)
 
-    // Solo se consulta la identidad de la sesión iniciada.
-    // Las preferencias no almacenan el protocolo ni sus formularios.
+    
+    
     private val preferencias = InduztekPreferencias(application)
 
     private val _uiState = MutableStateFlow(CrearProtocoloUiState())
@@ -77,9 +77,9 @@ class CrearProtocoloViewModel(
         }
     }
 
-    // ---------------------------------------------------------
-    // PASO 1: CLIENTE, INSTALACIÓN, EQUIPO Y PRUEBA
-    // ---------------------------------------------------------
+    
+    
+    
 
     fun seleccionarCliente(cliente: ClienteProtocolo) {
         _uiState.update {
@@ -939,8 +939,8 @@ class CrearProtocoloViewModel(
         val esAislacion = "aislación" in nombrePrueba || "aislacion" in nombrePrueba
         val esInterruptorOCelda = "interruptor" in tipoEquipo || "celda" in tipoEquipo
 
-        // RN-05: para interruptores y celdas MT se registra la lectura de aislación a 1 min.
-        // No se modifica el catálogo de SQLite; solo se adapta el formulario a este equipo.
+        
+        
         return if (esAislacion && esInterruptorOCelda) {
             parametros.filterNot { it.codigo == "LEC_10MIN" }
         } else {

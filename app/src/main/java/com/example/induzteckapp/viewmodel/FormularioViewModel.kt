@@ -1,5 +1,5 @@
-// induzteckApp/FormularioViewModel.kt
-// Corresponde al Registro de Usuarios
+
+
 
 
 package com.example.induzteckapp.viewmodel
@@ -32,9 +32,9 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
     private val patronContrasena =
         Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9\\s])\\S{8,}$")
 
-    // -----------------------------------------------------
-    // ACTUALIZACIÓN DE CAMPOS
-    // -----------------------------------------------------
+    
+    
+    
 
     fun onRolSeleccionado(rol: RolUsuario) {
         _uiState.update { estado ->
@@ -198,9 +198,9 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.value = FormularioUiState()
     }
 
-    // -----------------------------------------------------
-    // VALIDACIÓN DEL RUT CHILENO
-    // -----------------------------------------------------
+    
+    
+    
 
     private fun validarRut(rutIngresado: String): Boolean {
         val rut = rutIngresado.trim().replace(".", "").uppercase()
@@ -234,10 +234,7 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
         return digitoVerificadorIngresado == digitoVerificadorCalculado
     }
 
-    /**
-     * Deja el RUT en un formato único para almacenarlo y buscar duplicados.
-     * Ejemplo: 12.345.678-k -> 12345678-K
-     */
+    
     private fun normalizarRut(rutIngresado: String): String {
         val rutSinFormato = rutIngresado
             .trim()
@@ -248,14 +245,11 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
         return "${rutSinFormato.dropLast(1)}-${rutSinFormato.last()}"
     }
 
-    // -----------------------------------------------------
-    // REGISTRO DE USUARIO
-    // -----------------------------------------------------
+    
+    
+    
 
-    /**
-     * Valida los datos y registra el usuario en SQLite.
-     * Devuelve el usuario solamente cuando la inserción tiene éxito.
-     */
+    
     fun onRegistrar(): Usuario? {
         val estado = _uiState.value
 
@@ -387,8 +381,8 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
             errorTermino
         ).any { it != null }
 
-        // Primero mostramos los errores de validación.
-        // El registro NO es exitoso todavía.
+        
+        
         _uiState.update {
             it.copy(
                 errorRol = errorRol,
@@ -409,13 +403,13 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
 
         if (hayErrores) return null
 
-        // A partir de aquí, los campos ya superaron la validación.
-        // Normalizamos los identificadores antes de consultar SQLite.
+        
+        
         val rutNormalizado = normalizarRut(estado.rut)
         val rolSeleccionado = estado.rol ?: return null
 
         return try {
-            // Comprobar el RUT antes de intentar insertar.
+            
             if (dbHelper.existeUsuarioPorRut(rutNormalizado)) {
                 _uiState.update {
                     it.copy(
@@ -426,7 +420,7 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
                 return null
             }
 
-            // Comprobar el correo antes de intentar insertar.
+            
             if (dbHelper.existeUsuarioPorCorreo(correoNormalizado)) {
                 _uiState.update {
                     it.copy(
@@ -437,7 +431,7 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
                 return null
             }
 
-            // Buscar el rol por su código, nunca por un ID supuesto.
+            
             val idRolDb = dbHelper.obtenerIdRolPorCodigo(
                 rolSeleccionado.codigo
             )
@@ -455,7 +449,7 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
             val primerNombre = estado.nombre.trim()
             val apellidoIngresado = estado.apellido.trim().ifBlank { null }
 
-            // Se conserva la función de seguridad existente.
+            
             val passwordHash = generarResumenContrasena(estado.contrasena)
 
             val valores = ContentValues().apply {
@@ -483,12 +477,12 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }
 
-            // La operación de inserción la realiza el DB Helper.
+            
             val idGenerado = dbHelper.insertarUsuario(valores)
 
             if (idGenerado == -1L) {
-                // Puede ocurrir, por ejemplo, si SQLite rechaza
-                // un duplicado que apareció justo antes de insertar.
+                
+                
                 _uiState.update {
                     it.copy(
                         errorCorreo = "No se pudo registrar el usuario. Compruebe que el RUT y el correo no estén registrados.",
@@ -498,7 +492,7 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
                 return null
             }
 
-            // El objeto devuelto refleja los datos guardados.
+            
             val usuarioRegistrado = Usuario(
                 idUsuario = idGenerado,
                 rol = rolSeleccionado,
@@ -516,7 +510,7 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
                     estado.contactoCargo.trim().ifBlank { null }
             )
 
-            // SOLO después de insertar correctamente confirmamos el éxito.
+            
             _uiState.update {
                 it.copy(
                     registroExitoso = true,

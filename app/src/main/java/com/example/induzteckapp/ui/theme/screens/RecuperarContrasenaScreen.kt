@@ -62,7 +62,7 @@ fun RecuperarContrasenaScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .imePadding() // Solución al problema del teclado tapando los campos e inputs inferiores
+                .imePadding() 
                 .verticalScroll(rememberScrollState())
                 .padding(Dimens.espacioPantalla),
             verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)
@@ -110,7 +110,7 @@ fun RecuperarContrasenaScreen(
                 )
             }
 
-            // Feedback visual animado de éxito o error
+            
             AnimatedVisibility(
                 visible = mensajeResultado != null,
                 enter = fadeIn() + expandVertically(),

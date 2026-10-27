@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Shape
 import com.example.induzteckapp.ui.theme.theme.Dimens
 
 object EstilosTarjeta {
-    val forma: Shape = RoundedCornerShape(Dimens.radioTarjeta) //border-radius
+    val forma: Shape = RoundedCornerShape(Dimens.radioTarjeta) 
     @Composable
     fun colores(): CardColors = CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.surface

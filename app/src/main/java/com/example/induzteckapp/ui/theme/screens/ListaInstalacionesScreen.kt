@@ -86,7 +86,7 @@ fun ListaInstalacionesScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            // Barra de búsqueda en tiempo real para Instalación o TAG
+            
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
@@ -337,9 +337,9 @@ fun ResultadoClienteBadge(resultado: String) {
     }
 }
 
-// -----------------------------------------------------
-// VISTAS PREVIAS (PREVIEWS)
-// -----------------------------------------------------
+
+
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun ListaInstalacionesScreenPreview() {

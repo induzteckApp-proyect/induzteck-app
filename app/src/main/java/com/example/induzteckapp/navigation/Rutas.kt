@@ -1,6 +1,6 @@
 package com.example.induzteckapp.navigation
 
-// Rutas principales de InduzteckApp.
+
 sealed class Ruta(val ruta: String) {
     data object Login : Ruta("login")
     data object Registro : Ruta("registro")
@@ -16,9 +16,9 @@ sealed class Ruta(val ruta: String) {
     data object ListaBorradores : Ruta("lista_borradores")
     data object HistorialProtocolos : Ruta("historial_protocolos")
 
-    data object ListaClientes : Ruta("lista_clientes")  // Vista extendida (Técnico)
+    data object ListaClientes : Ruta("lista_clientes")  
 
-    data object ListaInstalaciones : Ruta("lista_instalaciones") // Vista extendida (Cliente)
+    data object ListaInstalaciones : Ruta("lista_instalaciones") 
 
     data object DetalleRespaldo : Ruta("detalle_respaldo/{idProtocolo}") {
         fun construir(idProtocolo: Int): String = "detalle_respaldo/$idProtocolo"

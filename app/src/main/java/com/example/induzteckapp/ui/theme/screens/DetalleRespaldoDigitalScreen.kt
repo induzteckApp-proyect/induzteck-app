@@ -129,7 +129,7 @@ fun DetalleRespaldoDigitalScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Tarjeta 1: Encabezado y Estado de Formalización (CA-3.2 / RN-17)
+                
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -165,7 +165,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                // Tarjeta 2: Datos Generales de la Inspección (Solo Lectura - CA-3.3)
+                
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -191,7 +191,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                // Tarjeta 3: Pruebas Eléctricas Registradas
+                
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -224,7 +224,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                // Tarjeta 4: Observaciones Generales
+                
                 if (p.observaciones.isNotBlank()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -248,7 +248,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                // Sello de Respaldo Digital Oficial
+                
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                     shape = MaterialTheme.shapes.medium,

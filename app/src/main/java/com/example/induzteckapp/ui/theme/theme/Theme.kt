@@ -1,4 +1,4 @@
-// InduzteckApp/ui.theme/theme/Theme.kt
+
 
 package com.example.induzteckapp.ui.theme.theme
 
@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 
 
 
-// COLORES CORREGIDOS
+
 private val EsquemaOscuro = darkColorScheme(
     primary = PrimarioClaro,
     onPrimary = PrimarioOscuro,
@@ -28,9 +28,9 @@ private val EsquemaOscuro = darkColorScheme(
     tertiary = Acento,
     onTertiary = Blanco,
     background = FondoOscuro,
-    onBackground = TextoOscuro, // <--- CORREGIDO (Debe ser texto claro para fondo oscuro)
+    onBackground = TextoOscuro, 
     surface = SuperficieOscura,
-    onSurface = TextoOscuro     // <--- CORREGIDO (Debe ser texto claro para superficie oscura)
+    onSurface = TextoOscuro     
 )
 
 private val EsquemaClaro = lightColorScheme(
@@ -43,13 +43,13 @@ private val EsquemaClaro = lightColorScheme(
     tertiary = Acento,
     onTertiary = Blanco,
     background = FondoClaro,
-    onBackground = TextoClaro, // <--- CORREGIDO (Debe ser texto oscuro para fondo claro)
+    onBackground = TextoClaro, 
     surface = SuperficieClara,
-    onSurface = TextoClaro     // <--- CORREGIDO (Debe ser texto oscuro para superficie clara)
+    onSurface = TextoClaro     
 )
 
 
-//border-radius
+
 private val Formas = Shapes(
     small = RoundedCornerShape(8.dp),
     medium = RoundedCornerShape(12.dp),
@@ -59,8 +59,8 @@ private val Formas = Shapes(
 @Composable
 fun MiRegistroTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = false, //true -> tuve que cambiarlo porque no reflejaba los colores reales de la app
+    
+    dynamicColor: Boolean = false, 
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

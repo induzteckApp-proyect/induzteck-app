@@ -1,4 +1,4 @@
-// com.example.induzteckapp/ui/theme/screens/InicioScreen.kt
+
 
 package com.example.induzteckapp.ui.theme.screens
 
@@ -28,7 +28,7 @@ fun InicioScreen(
     onCerrarSesion: () -> Unit,
     onIrANuevoProtocolo: () -> Unit = {},
     onIrAListaClientes: () -> Unit = {},
-    onIrAListaInstalaciones: () -> Unit = {}, // Callback para la vista del cliente
+    onIrAListaInstalaciones: () -> Unit = {}, 
     onIrAPerfil: () -> Unit = {},
     viewModel: InicioViewModel = viewModel()
 ) {
@@ -121,7 +121,7 @@ fun InicioScreen(
                     )
                 )
             },
-            // Botón flotante exclusivo para que el Técnico registre protocolos rápidamente
+            
             floatingActionButton = {
                 if (uiState.mostrarBotonCrearProtocolo) {
                     ExtendedFloatingActionButton(
@@ -164,7 +164,7 @@ fun InicioScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Secciones unificadas con la paleta de colores y tarjetas de FormularioScreen
+                    
                     if (uiState.esTecnico) {
                         TarjetaSeccion(titulo = "Gestión de Terreno") {
                             Text(
@@ -204,9 +204,9 @@ fun InicioScreen(
     }
 }
 
-// -----------------------------------------------------
-// VISTA PREVIA (PREVIEW)
-// -----------------------------------------------------
+
+
+
 @Preview(showBackground = true)
 @Composable
 private fun InicioScreenPreview() {

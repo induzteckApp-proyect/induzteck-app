@@ -1,4 +1,4 @@
-// app/src/main/java/com/example/induzteckapp/model/
+
 package com.example.induzteckapp.model
 
 data class Instalacion(

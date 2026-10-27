@@ -77,23 +77,23 @@ fun PerfilScreen(
 
     var mostrarOpcionesAvatar by remember { mutableStateOf(false) }
 
-    // Launcher para seleccionar foto desde la Galería nativa (PickVisualMedia)
+    
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        // CA-8.2: Si selecciona imagen válida, procesa Bitmap, convierte a JPEG achicado y guarda en SQLite como BLOB.
-        // CA-8.3: Si cancela (uri == null), mantiene la previa sin error.
+        
+        
         if (uri != null) {
             viewModel.onImagenSeleccionada(context, uri)
         }
     }
 
-    // Launcher para tomar foto desde la Cámara nativa (TakePicturePreview -> entrega un Bitmap directo)
+    
     val lanzadorCamara = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { foto: Bitmap? ->
-        // CA-8.2: Si captura foto con éxito, convierte a JPEG achicado de 400px y guarda en SQLite como BLOB.
-        // CA-8.3: Si cancela la toma (foto == null), mantiene la imagen previa.
+        
+        
         if (foto != null) {
             viewModel.onFotoCapturada(foto)
         }
@@ -103,11 +103,11 @@ fun PerfilScreen(
         try {
             lanzadorCamara.launch(null)
         } catch (_: ActivityNotFoundException) {
-            // Maneja dispositivos sin app de cámara de forma segura
+            
         }
     }
 
-    // Launcher para solicitar permiso nativo de Cámara si no está otorgado
+    
     val permisoCamaraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { concedido ->
@@ -162,7 +162,7 @@ fun PerfilScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Encabezado con Avatar Circular BLOB (CA-8.2) y Botón para cambiar foto
+            
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -187,7 +187,7 @@ fun PerfilScreen(
                 }
             }
 
-            // Datos de Solo Lectura (RUT, Correo, Rol) - CA-8.1
+            
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -234,7 +234,7 @@ fun PerfilScreen(
                 }
             }
 
-            // Datos Editables (Nombre, Apellidos, Giro, Contacto, Teléfono)
+            
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -304,7 +304,7 @@ fun PerfilScreen(
         }
     }
 
-    // Diálogo de Selección Nativa: Galería o Cámara (CA-8.2 / CA-8.3)
+    
     if (mostrarOpcionesAvatar) {
         AlertDialog(
             onDismissRequest = { mostrarOpcionesAvatar = false },

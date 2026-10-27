@@ -1,4 +1,4 @@
-// induzteckApp/ui/theme/screens/FormularioScreen.kt
+
 
 package com.example.induzteckapp.ui.theme.screens
 
@@ -122,7 +122,7 @@ fun FormularioContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .imePadding() // Solución al problema del teclado tapando los campos inferiores
+                .imePadding() 
                 .verticalScroll(rememberScrollState())
         ) {
             ImagenEncabezado(
@@ -136,9 +136,9 @@ fun FormularioContent(
                 modifier = Modifier.padding(Dimens.espacioPantalla),
                 verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)
             ) {
-                // -----------------------------------------------------
-                // TIPO DE USUARIO
-                // -----------------------------------------------------
+                
+                
+                
                 TarjetaSeccion(titulo = "Tipo de usuario") {
                     Text(
                         text = "Selecciona el perfil de cuenta que deseas registrar:",
@@ -168,9 +168,9 @@ fun FormularioContent(
                     }
                 }
 
-                // -----------------------------------------------------
-                // DATOS DE IDENTIFICACIÓN
-                // -----------------------------------------------------
+                
+                
+                
                 TarjetaSeccion(titulo = "Datos de identificación") {
                     CampoTexto(
                         valor = uiState.rut,
@@ -231,9 +231,9 @@ fun FormularioContent(
                     }
                 }
 
-                // -----------------------------------------------------
-                // DATOS DE CONTACTO
-                // -----------------------------------------------------
+                
+                
+                
                 TarjetaSeccion(titulo = "Datos de contacto") {
                     CampoTexto(
                         valor = uiState.correo,
@@ -253,9 +253,9 @@ fun FormularioContent(
                     )
                 }
 
-                // -----------------------------------------------------
-                // SEGURIDAD DE LA CUENTA
-                // -----------------------------------------------------
+                
+                
+                
                 TarjetaSeccion(titulo = "Seguridad de la cuenta") {
                     CampoContrasena(
                         valor = uiState.contrasena,
@@ -282,9 +282,9 @@ fun FormularioContent(
                     )
                 }
 
-                // -----------------------------------------------------
-                // TÉRMINOS Y CONDICIONES
-                // -----------------------------------------------------
+                
+                
+                
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.espacioChico)) {
                     CasillaConTexto(
                         texto = "Acepto los términos, condiciones y políticas de uso",
@@ -300,9 +300,9 @@ fun FormularioContent(
                     }
                 }
 
-                // -----------------------------------------------------
-                // BOTONES DE ACCIÓN
-                // -----------------------------------------------------
+                
+                
+                
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(Dimens.espacioMedio),
@@ -321,9 +321,9 @@ fun FormularioContent(
                     )
                 }
 
-                // -----------------------------------------------------
-                // MENSAJE ANIMADO DE ÉXITO
-                // -----------------------------------------------------
+                
+                
+                
                 AnimatedVisibility(
                     visible = uiState.registroExitoso,
                     enter = fadeIn() + expandVertically(),
@@ -373,9 +373,9 @@ private fun MensajeExito(nombre: String) {
     }
 }
 
-// -----------------------------------------------------
-// VISTA PREVIA (PREVIEW)
-// -----------------------------------------------------
+
+
+
 @Preview(showBackground = true)
 @Composable
 private fun FormularioScreenPreview() {

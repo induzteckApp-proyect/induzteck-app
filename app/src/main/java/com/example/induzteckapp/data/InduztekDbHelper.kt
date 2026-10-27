@@ -44,9 +44,9 @@ class InduztekDbHelper(context: Context) :
         private const val NOMBRE_BD = "induztek.db"
         private const val VERSION_BD = 3
 
-        // =====================================================
-        // TABLAS
-        // =====================================================
+        
+        
+        
 
         const val TABLA_ROL = "rol"
         const val TABLA_PERMISO = "permiso"
@@ -65,15 +65,15 @@ class InduztekDbHelper(context: Context) :
         const val TABLA_PRUEBA = "prueba"
         const val TABLA_MEDICION = "medicion"
 
-        // Resultados de las pruebas.
-        // 1 = Aprobado, 2 = Observado, 3 = Rechazado.
+        
+        
         const val RESULTADO_APROBADO = 1
         const val RESULTADO_OBSERVADO = 2
         const val RESULTADO_RECHAZADO = 3
 
-        // =====================================================
-        // SENTENCIAS SQL: CREACIÓN DE TABLAS
-        // =====================================================
+        
+        
+        
 
         private const val SQL_CREAR_ROL = """
             CREATE TABLE $TABLA_ROL (
@@ -277,9 +277,9 @@ class InduztekDbHelper(context: Context) :
             )
         """
 
-        // =====================================================
-        // SENTENCIAS SQL: DATOS SEMILLA
-        // =====================================================
+        
+        
+        
 
         private const val SQL_PRECARGAR_ROLES = """
             INSERT OR IGNORE INTO $TABLA_ROL (codigo, nombre)
@@ -451,9 +451,9 @@ class InduztekDbHelper(context: Context) :
         """
     }
 
-    // =========================================================
-    // CONFIGURACIÓN Y CICLO DE VIDA DE LA BASE DE DATOS
-    // =========================================================
+    
+    
+    
 
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
@@ -490,15 +490,15 @@ class InduztekDbHelper(context: Context) :
 
         if (oldVersion < 2) {
 
-            // Se conserva toda la información existente.
-            // Solo se agrega la columna BLOB si aún no existe.
+            
+            
             if (!existeColumna(db, TABLA_USUARIO, "avatar")) {
                 db.execSQL(
                     "ALTER TABLE $TABLA_USUARIO ADD COLUMN avatar BLOB"
                 )
             }
 
-            // Crear la nueva tabla de compatibilidad sin duplicarla.
+            
             db.execSQL(
                 """
                 CREATE TABLE IF NOT EXISTS $TABLA_TIPO_PRUEBA_EQUIPO (
@@ -513,7 +513,7 @@ class InduztekDbHelper(context: Context) :
                 """.trimIndent()
             )
 
-            // Completar datos de demostración sin recrear las tablas.
+            
             precargarDatos(db)
         }
 
@@ -553,9 +553,9 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    // =========================================================
-    // PRECARGA GENERAL
-    // =========================================================
+    
+    
+    
 
     private fun precargarDatos(db: SQLiteDatabase) {
 
@@ -576,9 +576,9 @@ class InduztekDbHelper(context: Context) :
         precargarPruebasYMediciones(db)
     }
 
-    // =========================================================
-    // REGIONES Y COMUNAS
-    // =========================================================
+    
+    
+    
 
     private fun precargarRegionesYComunas(db: SQLiteDatabase) {
 
@@ -631,18 +631,18 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    // =========================================================
-    // USUARIOS DE DEMOSTRACIÓN
-    // =========================================================
+    
+    
+    
 
     private fun precargarUsuarios(db: SQLiteDatabase) {
 
-        // SHA-256 de la contraseña de demostración: 123456.
+        
         val hashPrueba =
             "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"
 
-        // Se conservan los correos originales de las cuentas demo
-        // para no romper el acceso que ya utilizan los ViewModels.
+        
+        
 
         insertarUsuario(
             db, "17.284.519-3", "Matías Godoy Herrera",
@@ -772,9 +772,9 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    // =========================================================
-    // INSTALACIONES
-    // =========================================================
+    
+    
+    
 
     private fun precargarInstalaciones(db: SQLiteDatabase) {
 
@@ -863,9 +863,9 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    // =========================================================
-    // EQUIPOS
-    // =========================================================
+    
+    
+    
 
     private fun precargarEquipos(db: SQLiteDatabase) {
 
@@ -951,9 +951,9 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    // =========================================================
-    // TIPOS DE PRUEBA Y PARÁMETROS
-    // =========================================================
+    
+    
+    
 
     private fun precargarTiposPrueba(db: SQLiteDatabase) {
 
@@ -1114,9 +1114,9 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    // =========================================================
-    // HISTORIAL DE PROTOCOLOS
-    // =========================================================
+    
+    
+    
 
     private fun precargarProtocolos(db: SQLiteDatabase) {
 
@@ -1146,9 +1146,9 @@ class InduztekDbHelper(context: Context) :
             estado = "FORMALIZADO"
         )
 
-        // El número PT-2026-0401 ya existía en la semilla original.
-        // Se conserva su identidad y se actualizan sus datos de demo
-        // para coincidir con el historial que acordamos.
+        
+        
+        
         insertarProtocolo(
             db,
             numero = "PT-2026-0401",
@@ -1269,9 +1269,9 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    // =========================================================
-    // PRUEBAS Y MEDICIONES DE AISLACIÓN
-    // =========================================================
+    
+    
+    
 
     private fun precargarPruebasYMediciones(db: SQLiteDatabase) {
 
@@ -1352,8 +1352,8 @@ class InduztekDbHelper(context: Context) :
             arrayOf(resultado, numeroProtocolo)
         )
 
-        // Las mediciones se insertan solo si la prueba existe
-        // y todavía no tiene ese parámetro registrado.
+        
+        
         insertarMedicion(
             db, numeroProtocolo, "T_PRUEBA", 5.0
         )
@@ -1433,14 +1433,11 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    // =========================================================
-    // MÉTODOS ORIGINALES Y CONSULTAS REUTILIZABLES
-    // =========================================================
+    
+    
+    
 
-    /**
-     * Método original conservado para los ViewModels existentes.
-     * El llamador sigue siendo responsable de cerrar el Cursor.
-     */
+    
     fun buscarUsuarioPorCorreo(correo: String): Cursor {
         return readableDatabase.rawQuery(
             "SELECT * FROM $TABLA_USUARIO WHERE correo = ?",
@@ -1448,10 +1445,7 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    /**
-     * Método original conservado por compatibilidad.
-     * Convierte los bytes de la imagen seleccionada en un BLOB.
-     */
+    
     fun actualizarAvatarUsuario(
         idUsuario: Long,
         avatarUri: String
@@ -1468,10 +1462,7 @@ class InduztekDbHelper(context: Context) :
         return actualizarAvatarBlob(idUsuario, imagen)
     }
 
-    /**
-     * Guarda el avatar como bytes en la columna avatar BLOB.
-     * Una imagen null elimina el avatar guardado.
-     */
+    
     fun actualizarAvatarBlob(
         idUsuario: Long,
         imagen: ByteArray?
@@ -1489,9 +1480,7 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    /**
-     * Actualiza la información editable del perfil del usuario (HU-08)
-     */
+    
     fun actualizarPerfilUsuario(
         idUsuario: Long,
         nombre: String,
@@ -1516,9 +1505,7 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    /**
-     * Método original conservado para los ViewModels existentes.
-     */
+    
     fun actualizarPassword(
         correo: String,
         nuevoHash: String
@@ -1536,10 +1523,8 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    // NUEVO
-    /**
-     * Busca un usuario por su correo y devuelve sus datos como Usuario.
-     */
+    
+    
     fun obtenerUsuarioPorCorreo(correo: String): Usuario? {
         val consulta = """
         SELECT u.*, r.codigo AS rol_codigo
@@ -1561,9 +1546,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Busca un usuario por su identificador.
-     */
+    
     fun obtenerUsuarioPorId(idUsuario: Long): Usuario? {
         val consulta = """
         SELECT u.*, r.codigo AS rol_codigo
@@ -1585,10 +1568,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Convierte una fila de usuario en el modelo Usuario.
-     * Es privada porque solo la necesita este DBHelper.
-     */
+    
     private fun leerUsuario(cursor: Cursor): Usuario? {
         val codigoRol = cursor.getString(
             cursor.getColumnIndexOrThrow("rol_codigo")
@@ -1663,12 +1643,9 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-    // NUEVO
+    
 
-    /**
-     * Obtiene el ID interno de un rol usando su código.
-     * Así no dependemos de que los roles tengan IDs específicos.
-     */
+    
     fun obtenerIdRolPorCodigo(codigo: String): Long? {
         val db = readableDatabase
 
@@ -1682,9 +1659,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Comprueba si ya existe un usuario con el RUT indicado.
-     */
+    
     fun existeUsuarioPorRut(rut: String): Boolean {
         val db = readableDatabase
 
@@ -1696,9 +1671,7 @@ class InduztekDbHelper(context: Context) :
         return cursor.use { it.moveToFirst() }
     }
 
-    /**
-     * Comprueba si ya existe un usuario con el correo indicado.
-     */
+    
     fun existeUsuarioPorCorreo(correo: String): Boolean {
         val db = readableDatabase
 
@@ -1710,10 +1683,7 @@ class InduztekDbHelper(context: Context) :
         return cursor.use { it.moveToFirst() }
     }
 
-    /**
-     * Inserta un usuario en SQLite y devuelve su ID.
-     * Devuelve -1 si SQLite no consigue completar la inserción.
-     */
+    
     fun insertarUsuario(valores: ContentValues): Long {
         val db = writableDatabase
 
@@ -1723,8 +1693,8 @@ class InduztekDbHelper(context: Context) :
             valores
         )
     }
-    // nuevo (25/10/2026)
-    // 1. Obtener clientes con instalaciones y equipos usando tus constantes (CA-2.1)
+    
+    
     fun obtenerClientesConActivos(filtro: String = ""): List<ClienteConsulta> {
         val clientesMap = mutableMapOf<Int, ClienteConsulta>()
         val db = readableDatabase
@@ -1798,7 +1768,7 @@ class InduztekDbHelper(context: Context) :
         return clientesMap.values.toList()
     }
 
-    // 2. Obtener historial de protocolos por equipo usando tus constantes de resultados (CA-2.3)
+    
     fun obtenerHistorialEquipo(idEquipo: Int): List<ProtocoloResumen> {
         val historial = mutableListOf<ProtocoloResumen>()
         val db = readableDatabase
@@ -1849,7 +1819,7 @@ class InduztekDbHelper(context: Context) :
         return historial
     }
 
-    // 3. Obtener instalaciones de un cliente específico con sus equipos (Vista Cliente HU-03)
+    
     fun obtenerInstalacionesCliente(idUsuarioCliente: Long, filtro: String = ""): List<InstalacionConsulta> {
         val instalacionesMap = mutableMapOf<Int, InstalacionConsulta>()
         val db = readableDatabase
@@ -1911,8 +1881,8 @@ class InduztekDbHelper(context: Context) :
         return instalacionesMap.values.toList()
     }
 
-    // 4. Obtener historial de protocolos exclusivo para el Cliente (HU-03, RN-17 / CA-3.2)
-    // Excluye BORRADOR y ANULADO. Mapea la etiqueta 'Pendiente de formalización' para 'Registrado en terreno' u 'Observado'.
+    
+    
     fun obtenerHistorialEquipoCliente(idEquipo: Int): List<ProtocoloResumen> {
         val historial = mutableListOf<ProtocoloResumen>()
         val db = readableDatabase
@@ -1964,7 +1934,7 @@ class InduztekDbHelper(context: Context) :
         return historial
     }
 
-    // 5. Obtener detalle consolidado para la vista "Detalle del Respaldo Digital" (HU-03)
+    
     fun obtenerDetalleProtocolo(idProtocolo: Int): ProtocoloDetalle? {
         val db = readableDatabase
 
@@ -2101,14 +2071,11 @@ class InduztekDbHelper(context: Context) :
     }
 
 
-    // =========================================================
-    // HU-04: CONSULTAS PARA EL REGISTRO DE PROTOCOLOS
-    // =========================================================
+    
+    
+    
 
-    /**
-     * Obtiene los clientes activos registrados en SQLite.
-     * No devuelve usuarios con el rol de técnico.
-     */
+    
     fun obtenerClientesProtocolo(): List<ClienteProtocolo> {
         val consulta = """
             SELECT
@@ -2151,9 +2118,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Obtiene las instalaciones asociadas a un cliente.
-     */
+    
     fun obtenerInstalacionesPorCliente(
         idUsuarioCliente: Long
     ): List<Instalacion> {
@@ -2230,10 +2195,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Obtiene los equipos pertenecientes a una instalación.
-     * Incluye el nombre y la clasificación del tipo de equipo.
-     */
+    
     fun obtenerEquiposPorInstalacion(
         idInstalacion: Long
     ): List<Equipo> {
@@ -2330,9 +2292,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Obtiene las comunas disponibles, indicando su región.
-     */
+    
     fun obtenerComunas(): List<Comuna> {
         val consulta = """
             SELECT
@@ -2373,9 +2333,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Obtiene el catálogo de tipos de equipo.
-     */
+    
     fun obtenerTiposEquipo(): List<TipoEquipo> {
         val consulta = """
             SELECT id_tipo_equipo, nombre, clasificacion
@@ -2411,9 +2369,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Obtiene únicamente las pruebas compatibles con el tipo de equipo.
-     */
+    
     fun obtenerPruebasCompatibles(
         idTipoEquipo: Long
     ): List<TipoPrueba> {
@@ -2452,14 +2408,11 @@ class InduztekDbHelper(context: Context) :
     }
 
 
-    // =========================================================
-    // HU-04: CREACIÓN DE INSTALACIONES Y EQUIPOS
-    // =========================================================
+    
+    
+    
 
-    /**
-     * Comprueba si un TAG ya está registrado en una instalación.
-     * El mismo TAG puede existir en instalaciones diferentes.
-     */
+    
     fun existeTagEnInstalacion(
         idInstalacion: Long,
         tag: String
@@ -2478,10 +2431,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Crea una instalación para el cliente seleccionado.
-     * Devuelve su ID si se inserta correctamente o -1 si falla.
-     */
+    
     fun insertarInstalacionProtocolo(
         idUsuarioCliente: Long,
         nombre: String,
@@ -2522,13 +2472,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Crea un equipo en la instalación seleccionada.
-     * El TAG debe ser único dentro de esa instalación.
-     *
-     * Los datos de placa pueden quedar nulos cuando no se
-     * hayan proporcionado.
-     */
+    
     fun insertarEquipoProtocolo(
         idInstalacion: Long,
         tag: String,
@@ -2544,7 +2488,7 @@ class InduztekDbHelper(context: Context) :
 
         val tagLimpio = tag.trim()
 
-        // Comprobación previa para poder mostrar un mensaje claro.
+        
         if (existeTagEnInstalacion(idInstalacion, tagLimpio)) {
             return -1L
         }
@@ -2604,15 +2548,13 @@ class InduztekDbHelper(context: Context) :
                 valores
             )
         } catch (_: SQLiteConstraintException) {
-            // La restricción UNIQUE también protege ante
-            // un TAG duplicado entre la comprobación y el INSERT.
+            
+            
             -1L
         }
     }
 
-    /**
-     * Obtiene las regiones disponibles en SQLite.
-     */
+    
     fun obtenerRegiones(): List<Region> {
         val consulta = """
         SELECT id_region, nombre
@@ -2641,14 +2583,7 @@ class InduztekDbHelper(context: Context) :
         }
     }
 
-    /**
-     * Registra un protocolo con su prueba y mediciones.
-     *
-     * Las tres operaciones se ejecutan en una transacción.
-     * Si una falla, SQLite revierte el registro completo.
-     *
-     * Devuelve el número del protocolo si todo resulta bien.
-     */
+    
     fun registrarProtocolo(
         idEquipo: Long,
         idUsuarioRegistra: Long,
@@ -2664,7 +2599,7 @@ class InduztekDbHelper(context: Context) :
         db.beginTransaction()
 
         try {
-            // 1. Obtener el ID del estado inicial.
+            
             val idEstado = db.rawQuery(
                 """
                 SELECT id_estado
@@ -2682,7 +2617,7 @@ class InduztekDbHelper(context: Context) :
                 }
             }
 
-            // 2. Generar un número único para el año actual.
+            
             val anio = fechaHora.take(4)
             val prefijo = "PT-$anio-"
 
@@ -2703,7 +2638,7 @@ class InduztekDbHelper(context: Context) :
 
             val numeroProtocolo = "$prefijo${siguienteNumero.toString().padStart(4, '0')}"
 
-            // 3. Insertar la cabecera del protocolo.
+            
             val valoresProtocolo = ContentValues().apply {
                 put("numero", numeroProtocolo)
                 put("id_equipo", idEquipo)
@@ -2721,7 +2656,7 @@ class InduztekDbHelper(context: Context) :
                 valoresProtocolo
             )
 
-            // 4. Insertar la prueba asociada al protocolo.
+            
             val valoresPrueba = ContentValues().apply {
                 put("id_protocolo", idProtocolo)
                 put("id_tipo_prueba", idTipoPrueba)
@@ -2744,8 +2679,8 @@ class InduztekDbHelper(context: Context) :
                 valoresPrueba
             )
 
-            // 5. Buscar cada parámetro por su código e insertar
-            //    la medición correspondiente.
+            
+            
             for ((codigo, valor) in mediciones) {
                 val idParametro = db.rawQuery(
                     """
@@ -2782,7 +2717,7 @@ class InduztekDbHelper(context: Context) :
                 )
             }
 
-            // 6. Confirmar la transacción solo si todo se guardó.
+            
             db.setTransactionSuccessful()
 
             return numeroProtocolo

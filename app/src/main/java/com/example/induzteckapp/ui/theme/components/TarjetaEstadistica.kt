@@ -19,11 +19,11 @@ import com.example.induzteckapp.ui.theme.styles.EstilosTarjeta
 import com.example.induzteckapp.ui.theme.theme.Dimens
 import com.example.induzteckapp.ui.theme.theme.MiRegistroTheme
 
-// =====================================================================
-//  TarjetaEstadistica.kt  —  Número grande + etiqueta (ej. "128 Seguidores").
-//  Se usa dentro de una Row con Modifier.weight(1f) para que las tres
-//  tarjetas midan lo mismo (como flex: 1 en CSS).
-// =====================================================================
+
+
+
+
+
 
 @Composable
 fun TarjetaEstadistica(
@@ -40,7 +40,7 @@ fun TarjetaEstadistica(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = Dimens.espacioMedio),
-            horizontalAlignment = Alignment.CenterHorizontally // text-align: center
+            horizontalAlignment = Alignment.CenterHorizontally 
         ) {
             Text(
                 text = valor,

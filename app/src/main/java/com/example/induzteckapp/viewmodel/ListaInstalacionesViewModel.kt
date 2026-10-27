@@ -17,11 +17,11 @@ class ListaInstalacionesViewModel(application: Application) : AndroidViewModel(a
     private val dbHelper = InduztekDbHelper(application)
     private val preferencias = InduztekPreferencias(application)
 
-    // Estado para la barra de búsqueda en tiempo real (CA-2.1)
+    
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // Estado principal con la lista de instalaciones y equipos del cliente
+    
     private val _instalacionesState = MutableStateFlow<List<InstalacionConsulta>>(emptyList())
     val instalacionesState: StateFlow<List<InstalacionConsulta>> = _instalacionesState.asStateFlow()
 
@@ -32,7 +32,7 @@ class ListaInstalacionesViewModel(application: Application) : AndroidViewModel(a
         cargarDatos()
     }
 
-    // Actualiza la búsqueda y recarga las instalaciones filtradas para el cliente activo
+    
     fun onSearchQueryChanged(newQuery: String) {
         _searchQuery.value = newQuery
         cargarDatos(newQuery)
@@ -49,7 +49,7 @@ class ListaInstalacionesViewModel(application: Application) : AndroidViewModel(a
         }
     }
 
-    // Alterna la expansión/colapso de la tarjeta de una instalación
+    
     fun toggleInstalacionExpansion(idInstalacion: Int) {
         _instalacionesState.value = _instalacionesState.value.map { instalacion ->
             if (instalacion.idInstalacion == idInstalacion) {
@@ -58,7 +58,7 @@ class ListaInstalacionesViewModel(application: Application) : AndroidViewModel(a
         }
     }
 
-    // Alterna la expansión del equipo y realiza la carga diferida del historial de protocolos exclusivo cliente (HU-03)
+    
     fun toggleEquipoExpansion(idInstalacion: Int, idEquipo: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             val historial = dbHelper.obtenerHistorialEquipoCliente(idEquipo)

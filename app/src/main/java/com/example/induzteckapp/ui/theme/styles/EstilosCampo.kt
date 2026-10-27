@@ -1,6 +1,6 @@
 package com.example.induzteckapp.ui.theme.styles
 
-// com.example.induzteckapp/styles/EstilosCampo.kt
+
 
 
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,7 +13,7 @@ import com.example.induzteckapp.ui.theme.theme.Dimens
 import com.example.induzteckapp.ui.theme.theme.GrisDeshabilitado
 
 object EstilosCampo {
-    val forma: Shape = RoundedCornerShape(Dimens.radioCampo) //border-radius
+    val forma: Shape = RoundedCornerShape(Dimens.radioCampo) 
     @Composable
     fun colores(): TextFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = MaterialTheme.colorScheme.primary,

@@ -1,4 +1,4 @@
-// induzteckApp/MainActivity.kt
+
 
 package com.example.induzteckapp
 

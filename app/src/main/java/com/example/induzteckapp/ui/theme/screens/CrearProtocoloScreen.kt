@@ -113,7 +113,7 @@ fun CrearProtocoloScreen(
                         ).joinToString(", ").takeIf { it.isNotBlank() }
                 }
             } catch (_: Exception) {
-                // La geocodificación puede no estar disponible en todos los dispositivos.
+                
             }
 
             val direccionFinal = direccion
