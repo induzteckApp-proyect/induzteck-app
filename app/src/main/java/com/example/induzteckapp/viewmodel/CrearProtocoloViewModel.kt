@@ -94,7 +94,8 @@ class CrearProtocoloViewModel(
                 parametrosPrueba = emptyList(),
                 mostrarFormularioInstalacion = false,
                 mostrarFormularioEquipo = false,
-                mensajeError = null
+                mensajeError = null,
+                erroresCampos = emptyMap()
             )
         }
 
@@ -118,35 +119,40 @@ class CrearProtocoloViewModel(
     }
 
     fun seleccionarRegion(region: Region) {
-        _uiState.update {
-            it.copy(
+        _uiState.update { estado ->
+            estado.copy(
                 regionSeleccionada = region,
                 comunaSeleccionada = null,
-                mensajeError = null
+                mensajeError = limpiarMensajeValidacion(estado),
+                erroresCampos = estado.erroresCampos - "regionSeleccionada" - "comunaSeleccionada"
             )
         }
     }
 
     fun seleccionarComuna(comuna: Comuna) {
-        _uiState.update {
-            it.copy(comunaSeleccionada = comuna, mensajeError = null)
+        actualizarCampo("comunaSeleccionada") {
+            it.copy(comunaSeleccionada = comuna)
         }
     }
 
     fun mostrarFormularioInstalacion(mostrar: Boolean) {
-        _uiState.update {
-            it.copy(
+        _uiState.update { estado ->
+            estado.copy(
                 mostrarFormularioInstalacion = mostrar,
-                mensajeError = null
+                mensajeError = null,
+                erroresCampos = estado.erroresCampos - setOf(
+                    "nombreInstalacion", "ubicacionInstalacion",
+                    "regionSeleccionada", "comunaSeleccionada"
+                )
             )
         }
     }
 
     fun actualizarNombreInstalacion(valor: String) =
-        actualizar { it.copy(nombreInstalacion = valor) }
+        actualizarCampo("nombreInstalacion") { it.copy(nombreInstalacion = valor) }
 
     fun actualizarUbicacionInstalacion(valor: String) =
-        actualizar { it.copy(ubicacionInstalacion = valor) }
+        actualizarCampo("ubicacionInstalacion") { it.copy(ubicacionInstalacion = valor) }
 
     fun actualizarObservacionesAcceso(valor: String) =
         actualizar { it.copy(observacionesAcceso = valor) }
@@ -161,28 +167,38 @@ class CrearProtocoloViewModel(
             return
         }
 
-        if (estado.nombreInstalacion.isBlank()) {
-            mostrarError("Ingresa el nombre de la instalación.")
+        val errores = buildMap {
+            if (estado.nombreInstalacion.isBlank()) {
+                put("nombreInstalacion", "Ingresa el nombre de la instalación.")
+            }
+            if (estado.ubicacionInstalacion.isBlank()) {
+                put("ubicacionInstalacion", "Ingresa la ubicación o dirección de la instalación.")
+            }
+            if (estado.regionSeleccionada == null) {
+                put("regionSeleccionada", "Selecciona una región.")
+            }
+            if (comuna == null) {
+                put("comunaSeleccionada", "Selecciona una comuna.")
+            } else if (estado.regionSeleccionada != null &&
+                comuna.idRegion != estado.regionSeleccionada.idRegion
+            ) {
+                put("comunaSeleccionada", "La comuna no corresponde a la región seleccionada.")
+            }
+        }
+        if (errores.isNotEmpty()) {
+            _uiState.update {
+                it.copy(
+                    mensajeError = "Revisa los campos marcados e inténtalo nuevamente.",
+                    mensajeExito = null,
+                    erroresCampos = errores
+                )
+            }
             return
         }
-
-        if (estado.ubicacionInstalacion.isBlank()) {
-            mostrarError("Ingresa la ubicación de la instalación.")
-            return
-        }
-
-        if (estado.regionSeleccionada == null || comuna == null) {
-            mostrarError("Selecciona una región y una comuna.")
-            return
-        }
-
-        if (comuna.idRegion != estado.regionSeleccionada.idRegion) {
-            mostrarError("La comuna seleccionada no corresponde a la región.")
-            return
-        }
+        val comunaNoNula = comuna ?: return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(guardando = true, mensajeError = null) }
+            _uiState.update { it.copy(guardando = true, mensajeError = null, erroresCampos = emptyMap()) }
 
             try {
                 val idNuevo = withContext(Dispatchers.IO) {
@@ -190,7 +206,7 @@ class CrearProtocoloViewModel(
                         cliente.idUsuario,
                         estado.nombreInstalacion.trim(),
                         estado.ubicacionInstalacion.trim(),
-                        comuna.idComuna,
+                        comunaNoNula.idComuna,
                         estado.observacionesAcceso.trim().ifBlank { null }
                     )
                 }
@@ -250,7 +266,8 @@ class CrearProtocoloViewModel(
                 pruebasCompatibles = emptyList(),
                 parametrosPrueba = emptyList(),
                 mostrarFormularioEquipo = false,
-                mensajeError = null
+                mensajeError = null,
+                erroresCampos = emptyMap()
             )
         }
 
@@ -278,27 +295,32 @@ class CrearProtocoloViewModel(
         }
     }
 
-    fun mostrarFormularioEquipo(mostrar: Boolean) {
-        _uiState.update {
-            it.copy(
-                mostrarFormularioEquipo = mostrar,
-                mensajeError = null
+    fun seleccionarTipoEquipo(tipo: TipoEquipo) {
+        _uiState.update { estado ->
+            estado.copy(
+                tipoEquipoSeleccionado = tipo,
+                maxContactosUohm = if (requiereResistenciaMaxima(tipo)) estado.maxContactosUohm else "",
+                mensajeError = limpiarMensajeValidacion(estado),
+                erroresCampos = estado.erroresCampos - setOf("tipoEquipoSeleccionado", "maxContactosUohm")
             )
         }
     }
 
-    fun seleccionarTipoEquipo(tipo: TipoEquipo) {
-        _uiState.update {
-            it.copy(
-                tipoEquipoSeleccionado = tipo,
-                maxContactosUohm = if (requiereResistenciaMaxima(tipo)) it.maxContactosUohm else "",
-                mensajeError = null
+    fun mostrarFormularioEquipo(mostrar: Boolean) {
+        _uiState.update { estado ->
+            estado.copy(
+                mostrarFormularioEquipo = mostrar,
+                mensajeError = null,
+                erroresCampos = estado.erroresCampos - setOf(
+                    "tipoEquipoSeleccionado", "tagEquipo", "potenciaKva",
+                    "tensiones", "corriente", "maxContactosUohm"
+                )
             )
         }
     }
 
     fun actualizarTagEquipo(valor: String) =
-        actualizar { it.copy(tagEquipo = valor) }
+        actualizarCampo("tagEquipo") { it.copy(tagEquipo = valor) }
 
     fun actualizarMarcaEquipo(valor: String) =
         actualizar { it.copy(marcaEquipo = valor) }
@@ -310,16 +332,16 @@ class CrearProtocoloViewModel(
         actualizar { it.copy(numeroSerieEquipo = valor) }
 
     fun actualizarPotenciaKva(valor: String) =
-        actualizar { it.copy(potenciaKva = valor) }
+        actualizarCampo("potenciaKva") { it.copy(potenciaKva = valor) }
 
     fun actualizarTensiones(valor: String) =
-        actualizar { it.copy(tensiones = valor) }
+        actualizarCampo("tensiones") { it.copy(tensiones = valor) }
 
     fun actualizarCorriente(valor: String) =
-        actualizar { it.copy(corriente = valor) }
+        actualizarCampo("corriente") { it.copy(corriente = valor) }
 
     fun actualizarMaxContactosUohm(valor: String) =
-        actualizar { it.copy(maxContactosUohm = valor) }
+        actualizarCampo("maxContactosUohm") { it.copy(maxContactosUohm = valor) }
 
     fun crearEquipo() {
         val estado = _uiState.value
@@ -331,59 +353,64 @@ class CrearProtocoloViewModel(
             return
         }
 
+        val errores = mutableMapOf<String, String>()
         if (estado.tagEquipo.isBlank()) {
-            mostrarError("El TAG del equipo es obligatorio.")
-            return
+            errores["tagEquipo"] = "El TAG del equipo es obligatorio."
         }
-
         if (tipo == null) {
-            mostrarError("Selecciona el tipo de equipo.")
-            return
+            errores["tipoEquipoSeleccionado"] = "Selecciona el tipo de equipo."
         }
 
-        val potencia = convertirNumeroOpcional(estado.potenciaKva, "potencia") ?: run {
-            if (estado.potenciaKva.isNotBlank()) return
-            null
+        fun validarNumeroOpcional(valor: String, clave: String): Double? {
+            if (valor.isBlank()) return null
+            val numero = decimalValido(valor)
+            if (numero == null) {
+                errores[clave] = "Ingresa un número válido usando punto decimal."
+                return null
+            }
+            if (numero < 0.0) {
+                errores[clave] = "Este valor no puede ser negativo."
+                return null
+            }
+            return numero
         }
 
-        val tensiones = convertirNumeroOpcional(estado.tensiones, "tensiones") ?: run {
-            if (estado.tensiones.isNotBlank()) return
-            null
-        }
-
-        val corriente = convertirNumeroOpcional(estado.corriente, "corriente") ?: run {
-            if (estado.corriente.isNotBlank()) return
-            null
-        }
-
-        val requiereMaxContactos = requiereResistenciaMaxima(tipo)
-        val maxContactos = convertirNumeroOpcional(
+        val potencia = validarNumeroOpcional(estado.potenciaKva, "potenciaKva")
+        val tensiones = validarNumeroOpcional(estado.tensiones, "tensiones")
+        val corriente = validarNumeroOpcional(estado.corriente, "corriente")
+        val requiereMaxContactos = tipo != null && requiereResistenciaMaxima(tipo)
+        val maxContactos = validarNumeroOpcional(
             estado.maxContactosUohm,
-            "resistencia máxima de contactos"
-        ) ?: run {
-            if (estado.maxContactosUohm.isNotBlank()) return
-            null
-        }
+            "maxContactosUohm"
+        )
 
         if (requiereMaxContactos && (maxContactos == null || maxContactos <= 0.0)) {
-            mostrarError("Para un interruptor o una celda de MT, la resistencia máxima de contactos indicada en la placa es obligatoria y debe ser mayor que cero.")
+            errores["maxContactosUohm"] =
+                "La resistencia máxima de placa es obligatoria y debe ser mayor que cero."
+        }
+
+        if (errores.isNotEmpty()) {
+            _uiState.update {
+                it.copy(
+                    mensajeError = "Revisa los campos marcados e inténtalo nuevamente.",
+                    mensajeExito = null,
+                    erroresCampos = errores
+                )
+            }
             return
         }
 
-        if (listOfNotNull(potencia, tensiones, corriente, maxContactos).any { it < 0 }) {
-            mostrarError("Los datos numéricos del equipo no pueden ser negativos.")
-            return
-        }
+        val tipoNoNulo = tipo ?: return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(guardando = true, mensajeError = null) }
+            _uiState.update { it.copy(guardando = true, mensajeError = null, erroresCampos = emptyMap()) }
 
             try {
                 val idNuevo = withContext(Dispatchers.IO) {
                     dbHelper.insertarEquipoProtocolo(
                         instalacion.idInstalacion,
                         estado.tagEquipo.trim(),
-                        tipo.idTipoEquipo,
+                        tipoNoNulo.idTipoEquipo,
                         estado.marcaEquipo.trim().ifBlank { null },
                         estado.modeloEquipo.trim().ifBlank { null },
                         estado.numeroSerieEquipo.trim().ifBlank { null },
@@ -395,10 +422,15 @@ class CrearProtocoloViewModel(
                 }
 
                 if (idNuevo <= 0L) {
-                    mostrarError(
-                        "No se pudo registrar el equipo. " +
-                                "Comprueba si ya existe ese TAG en la instalación."
-                    )
+                    _uiState.update {
+                        it.copy(
+                            mensajeError = "No se pudo registrar el equipo. Comprueba el TAG e inténtalo nuevamente.",
+                            mensajeExito = null,
+                            erroresCampos = mapOf(
+                                "tagEquipo" to "El TAG puede estar duplicado en esta instalación."
+                            )
+                        )
+                    }
                     return@launch
                 }
 
@@ -430,7 +462,8 @@ class CrearProtocoloViewModel(
                         corriente = "",
                         maxContactosUohm = "",
                         guardando = false,
-                        mensajeExito = "Equipo registrado correctamente."
+                        mensajeExito = "Equipo registrado correctamente.",
+                        erroresCampos = emptyMap()
                     )
                 }
 
@@ -444,7 +477,17 @@ class CrearProtocoloViewModel(
                     "No fue posible guardar el equipo. Verifica los datos."
                 }
 
-                mostrarError(mensaje)
+                if (e.message?.contains("UNIQUE", ignoreCase = true) == true) {
+                    _uiState.update {
+                        it.copy(
+                            mensajeError = mensaje,
+                            mensajeExito = null,
+                            erroresCampos = mapOf("tagEquipo" to mensaje)
+                        )
+                    }
+                } else {
+                    mostrarError(mensaje)
+                }
             } finally {
                 _uiState.update { it.copy(guardando = false) }
             }
@@ -468,7 +511,8 @@ class CrearProtocoloViewModel(
                 pruebasCompatibles = emptyList(),
                 parametrosPrueba = emptyList(),
                 mediciones = emptyMap(),
-                mensajeError = null
+                mensajeError = null,
+                erroresCampos = emptyMap()
             )
         }
 
@@ -508,7 +552,8 @@ class CrearProtocoloViewModel(
                 indicePruebaActual = 0,
                 parametrosPrueba = emptyList(),
                 mediciones = emptyMap(),
-                mensajeError = null
+                mensajeError = null,
+                erroresCampos = emptyMap()
             )
         }
     }
@@ -521,18 +566,18 @@ class CrearProtocoloViewModel(
     }
 
     fun actualizarTemperatura(valor: String) {
-        actualizar { it.copy(temperaturaC = valor) }
+        actualizarCampo("temperaturaC") { it.copy(temperaturaC = valor) }
         persistirBorradorSiValido()
     }
 
     fun actualizarHumedad(valor: String) {
-        actualizar { it.copy(humedadPct = valor) }
+        actualizarCampo("humedadPct") { it.copy(humedadPct = valor) }
         persistirBorradorSiValido()
     }
 
     fun actualizarMedicion(codigo: String, valor: String) {
-        _uiState.update {
-            it.copy(mediciones = it.mediciones + (codigo to valor), mensajeError = null)
+        actualizarCampo(codigo) {
+            it.copy(mediciones = it.mediciones + (codigo to valor))
         }
     }
 
@@ -542,7 +587,7 @@ class CrearProtocoloViewModel(
     }
 
     fun actualizarElementoPrueba(valor: String) =
-        actualizar { it.copy(elementoPrueba = valor) }
+        actualizarCampo("elementoPrueba") { it.copy(elementoPrueba = valor) }
 
     fun actualizarReleOpero(valor: Boolean) =
         actualizar { it.copy(releOpero = valor) }
@@ -588,15 +633,34 @@ class CrearProtocoloViewModel(
         val estado = _uiState.value
         when (estado.pasoActual) {
             1 -> {
-                if (estado.clienteSeleccionado == null ||
-                    estado.instalacionSeleccionada == null ||
-                    estado.equipoSeleccionado == null ||
-                    estado.pruebasSeleccionadas.isEmpty()
-                ) {
-                    mostrarError("Selecciona cliente, instalación, equipo y al menos una prueba.")
+                val errores = buildMap {
+                    if (estado.clienteSeleccionado == null) {
+                        put("clienteSeleccionado", "Selecciona un cliente.")
+                    } else if (estado.instalacionSeleccionada == null) {
+                        put("instalacionSeleccionada", "Selecciona una instalación.")
+                    } else if (estado.equipoSeleccionado == null) {
+                        put("equipoSeleccionado", "Selecciona un equipo.")
+                    } else if (estado.pruebasSeleccionadas.isEmpty()) {
+                        put("pruebasSeleccionadas", "Selecciona al menos una prueba.")
+                    }
+                }
+                if (errores.isNotEmpty()) {
+                    _uiState.update {
+                        it.copy(
+                            mensajeError = "Completa los campos marcados antes de continuar.",
+                            mensajeExito = null,
+                            erroresCampos = errores
+                        )
+                    }
                     return
                 }
-                _uiState.update { it.copy(pasoActual = 2, mensajeError = null) }
+                _uiState.update {
+                    it.copy(
+                        pasoActual = 2,
+                        mensajeError = null,
+                        erroresCampos = emptyMap()
+                    )
+                }
             }
             2 -> {
                 if (creandoBorrador && estado.idProtocoloBorrador == null) {
@@ -605,14 +669,26 @@ class CrearProtocoloViewModel(
                 }
                 val temperatura = decimalValido(estado.temperaturaC)
                 val humedad = decimalValido(estado.humedadPct)
-                if (temperatura == null || temperatura !in -10.0..60.0) {
-                    mostrarError("La temperatura debe ser un número entre -10 y 60 °C.")
+                val errores = buildMap {
+                    if (temperatura == null || temperatura !in -10.0..60.0) {
+                        put("temperaturaC", "Ingresa una temperatura entre -10 y 60 °C.")
+                    }
+                    if (humedad == null || humedad !in 0.0..100.0) {
+                        put("humedadPct", "Ingresa una humedad entre 0 y 100 %.")
+                    }
+                }
+                if (errores.isNotEmpty()) {
+                    _uiState.update {
+                        it.copy(
+                            mensajeError = "Revisa las condiciones ambientales marcadas.",
+                            mensajeExito = null,
+                            erroresCampos = errores
+                        )
+                    }
                     return
                 }
-                if (humedad == null || humedad !in 0.0..100.0) {
-                    mostrarError("La humedad debe estar entre 0 y 100 %.")
-                    return
-                }
+                val temperaturaValida = temperatura ?: return
+                val humedadValida = humedad ?: return
                 val userId = preferencias.leerSesion()
                 val equipo = estado.equipoSeleccionado
                 if (equipo == null || userId <= 0L) {
@@ -626,7 +702,7 @@ class CrearProtocoloViewModel(
                         val idBorrador = withContext(Dispatchers.IO) {
                             val id = dbHelper.guardarCabeceraBorrador(
                                 estado.idProtocoloBorrador, equipo.idEquipo, userId,
-                                fechaHora, temperatura, humedad
+                                fechaHora, temperaturaValida, humedadValida
                             )
                             dbHelper.guardarPruebasSeleccionadasBorrador(
                                 id, estado.pruebasSeleccionadas.map { it.idTipoPrueba }
@@ -635,7 +711,11 @@ class CrearProtocoloViewModel(
                         }
                         val primera = estado.pruebasSeleccionadas.first()
                         val parametros = withContext(Dispatchers.IO) {
-                            dbHelper.obtenerParametrosPorTipoPrueba(primera.idTipoPrueba)
+                            parametrosParaEquipo(
+                                primera,
+                                equipo,
+                                dbHelper.obtenerParametrosPorTipoPrueba(primera.idTipoPrueba)
+                            )
                         }
                         _uiState.update {
                             it.copy(
@@ -645,6 +725,7 @@ class CrearProtocoloViewModel(
                                 pruebaSeleccionada = primera,
                                 parametrosPrueba = parametros,
                                 mediciones = emptyMap(),
+                                erroresCampos = emptyMap(),
                                 guardando = false,
                                 mensajeExito = "Borrador guardado. Completa las pruebas seleccionadas.",
                                 mensajeError = null
@@ -684,45 +765,65 @@ class CrearProtocoloViewModel(
         }
 
         val valores = mutableMapOf<String, Double>()
+        val erroresMediciones = mutableMapOf<String, String>()
         for (p in estado.parametrosPrueba) {
             val raw = estado.mediciones[p.codigo].orEmpty()
             val n = decimalValido(raw)
             if (n == null) {
-                mostrarError("Completa '${p.nombre}' con un valor numérico válido.")
-                return
+                erroresMediciones[p.codigo] =
+                    "Completa '${p.nombre}' con un número válido usando punto decimal."
+                continue
             }
-            if (p.codigo == "POS_TAP" && (n < 1 || n % 1.0 != 0.0)) {
-                mostrarError("La posición TAP debe ser un entero mayor o igual a 1.")
-                return
+            if (p.codigo == "POS_TAP" && n % 1.0 != 0.0) {
+                erroresMediciones[p.codigo] =
+                    "La posición TAP debe ser un entero; admite valores negativos, cero o positivos."
+                continue
             }
-            if ((p.codigo == "TIEMPO_ESPERADO" || p.codigo == "TIEMPO_MEDIDO") && n <= 0) {
-                mostrarError("Los tiempos deben ser mayores que cero.")
-                return
-            }
-            if (p.codigo != "TIEMPO_ESPERADO" && p.codigo != "TIEMPO_MEDIDO" && n <= 0) {
-                mostrarError("'${p.nombre}' debe ser mayor que cero.")
-                return
+            if (p.codigo == "TIEMPO_ESPERADO" || p.codigo == "TIEMPO_MEDIDO") {
+                if (n <= 0.0) {
+                    erroresMediciones[p.codigo] = "El tiempo debe ser mayor que cero."
+                    continue
+                }
+            } else if (p.codigo != "POS_TAP" && n <= 0.0) {
+                erroresMediciones[p.codigo] = "'${p.nombre}' debe ser mayor que cero."
+                continue
             }
             valores[p.codigo] = if (
                 estado.unidadAislacion == "GΩ" &&
                 (p.codigo == "LEC_1MIN" || p.codigo == "LEC_10MIN")
             ) n * 1000.0 else n
         }
+        if (erroresMediciones.isNotEmpty()) {
+            _uiState.update {
+                it.copy(
+                    mensajeError = "Revisa las mediciones marcadas antes de guardar la prueba.",
+                    mensajeExito = null,
+                    erroresCampos = erroresMediciones
+                )
+            }
+            return
+        }
 
         val elementosRequeridos = elementosRequeridos(prueba, equipo)
         val elementoActual = estado.elementoPrueba.trim()
         if (elementosRequeridos.isNotEmpty()) {
-            if (elementoActual.isBlank()) {
-                mostrarError("Indica el elemento: ${elementosRequeridos.joinToString(", ")}.")
-                return
+            val errorElemento = when {
+                elementoActual.isBlank() ->
+                    "Selecciona el elemento: ${elementosRequeridos.joinToString(", ")}."
+                elementosRequeridos.none { it.equals(elementoActual, ignoreCase = true) } ->
+                    "Selecciona uno de estos elementos: ${elementosRequeridos.joinToString(", ")}."
+                "${prueba.idTipoPrueba}|${elementoActual.lowercase(Locale.ROOT)}" in estado.elementosCompletados ->
+                    "Ese elemento ya fue guardado. Selecciona uno pendiente."
+                else -> null
             }
-            if (elementosRequeridos.none { it.equals(elementoActual, ignoreCase = true) }) {
-                mostrarError("Para esta prueba utiliza uno de estos elementos: ${elementosRequeridos.joinToString(", ")}.")
-                return
-            }
-            val claveElemento = "${prueba.idTipoPrueba}|${elementoActual.lowercase(Locale.ROOT)}"
-            if (claveElemento in estado.elementosCompletados) {
-                mostrarError("Ese elemento ya fue guardado. Ingresa uno que aún esté pendiente.")
+            if (errorElemento != null) {
+                _uiState.update {
+                    it.copy(
+                        mensajeError = errorElemento,
+                        mensajeExito = null,
+                        erroresCampos = mapOf("elementoPrueba" to errorElemento)
+                    )
+                }
                 return
             }
         }
@@ -735,7 +836,7 @@ class CrearProtocoloViewModel(
 
         val resultado = evaluarResultado(estado, valores, equipo.maxContactosUohm)
         viewModelScope.launch {
-            _uiState.update { it.copy(guardando = true, mensajeError = null, mensajeExito = null) }
+            _uiState.update { it.copy(guardando = true, mensajeError = null, mensajeExito = null, erroresCampos = emptyMap()) }
             try {
                 withContext(Dispatchers.IO) {
                     dbHelper.guardarPruebaEvaluada(
@@ -764,6 +865,7 @@ class CrearProtocoloViewModel(
                             mediciones = emptyMap(),
                             elementoPrueba = "",
                             guardando = false,
+                            erroresCampos = emptyMap(),
                             mensajeExito = "Elemento guardado. Resultado: ${nombreResultado(resultado)}. Faltan ${requeridos.size - guardados} elementos para completar esta prueba."
                         )
                     }
@@ -775,7 +877,11 @@ class CrearProtocoloViewModel(
                 if (siguienteIndice < estado.pruebasSeleccionadas.size) {
                     val siguiente = estado.pruebasSeleccionadas[siguienteIndice]
                     val parametros = withContext(Dispatchers.IO) {
-                        dbHelper.obtenerParametrosPorTipoPrueba(siguiente.idTipoPrueba)
+                        parametrosParaEquipo(
+                            siguiente,
+                            equipo,
+                            dbHelper.obtenerParametrosPorTipoPrueba(siguiente.idTipoPrueba)
+                        )
                     }
                     _uiState.update {
                         it.copy(
@@ -787,6 +893,7 @@ class CrearProtocoloViewModel(
                             mediciones = emptyMap(),
                             elementoPrueba = "",
                             guardando = false,
+                            erroresCampos = emptyMap(),
                             mensajeExito = "Prueba guardada. Resultado: ${nombreResultado(resultado)}. Continúa con ${siguiente.nombre}."
                         )
                     }
@@ -803,6 +910,7 @@ class CrearProtocoloViewModel(
                             elementosCompletados = elementosActualizados,
                             resumenResultados = resumen.second,
                             guardando = false,
+                            erroresCampos = emptyMap(),
                             protocoloFinalizado = true,
                             mensajeExito = "Todas las pruebas fueron guardadas. Protocolo registrado en terreno. Resultado global: $resumenGlobal.",
                             mensajeError = null
@@ -817,6 +925,26 @@ class CrearProtocoloViewModel(
                     )
                 }
             }
+        }
+    }
+
+    private fun parametrosParaEquipo(
+        prueba: TipoPrueba,
+        equipo: Equipo,
+        parametros: List<com.example.induzteckapp.model.ParametroPrueba>
+    ): List<com.example.induzteckapp.model.ParametroPrueba> {
+        val nombrePrueba = prueba.nombre.lowercase(Locale.ROOT)
+        val tipoEquipo = (equipo.nombreTipoEquipo + " " + equipo.clasificacionTipo)
+            .lowercase(Locale.ROOT)
+        val esAislacion = "aislación" in nombrePrueba || "aislacion" in nombrePrueba
+        val esInterruptorOCelda = "interruptor" in tipoEquipo || "celda" in tipoEquipo
+
+        // RN-05: para interruptores y celdas MT se registra la lectura de aislación a 1 min.
+        // No se modifica el catálogo de SQLite; solo se adapta el formulario a este equipo.
+        return if (esAislacion && esInterruptorOCelda) {
+            parametros.filterNot { it.codigo == "LEC_10MIN" }
+        } else {
+            parametros
         }
     }
 
@@ -1037,15 +1165,40 @@ class CrearProtocoloViewModel(
     }
 
     fun limpiarMensajes() {
-        _uiState.update { it.copy(mensajeError = null, mensajeExito = null) }
+        _uiState.update {
+            it.copy(mensajeError = null, mensajeExito = null, erroresCampos = emptyMap())
+        }
     }
+
+    private fun actualizarCampo(
+        clave: String,
+        cambio: (CrearProtocoloUiState) -> CrearProtocoloUiState
+    ) {
+        _uiState.update { estado ->
+            val erroresRestantes = estado.erroresCampos - clave
+            cambio(estado).copy(
+                erroresCampos = erroresRestantes,
+                mensajeError = if (erroresRestantes.isEmpty()) null else estado.mensajeError,
+                mensajeExito = null
+            )
+        }
+    }
+
+    private fun limpiarMensajeValidacion(estado: CrearProtocoloUiState): String? =
+        if (estado.mensajeError == "Revisa los campos marcados e inténtalo nuevamente.") {
+            null
+        } else {
+            estado.mensajeError
+        }
 
     private fun actualizar(cambio: (CrearProtocoloUiState) -> CrearProtocoloUiState) {
         _uiState.update { cambio(it).copy(mensajeError = null, mensajeExito = null) }
     }
 
     private fun mostrarError(mensaje: String) {
-        _uiState.update { it.copy(mensajeError = mensaje, mensajeExito = null) }
+        _uiState.update {
+            it.copy(mensajeError = mensaje, mensajeExito = null, erroresCampos = emptyMap())
+        }
     }
 
     private fun decimalValido(texto: String): Double? {
@@ -1054,817 +1207,8 @@ class CrearProtocoloViewModel(
         return limpio.toDoubleOrNull()?.takeIf { it.isFinite() }
     }
 
-    private fun convertirNumeroOpcional(texto: String, nombreCampo: String): Double? {
-        if (texto.isBlank()) return null
-        val numero = decimalValido(texto)
-        if (numero == null) mostrarError("El campo '$nombreCampo' debe ser numérico y usar punto decimal.")
-        return numero
-    }
-
     override fun onCleared() {
         dbHelper.close()
         super.onCleared()
     }
 }
-
-
-/*
-// CrearProtocoloViewModel
-
-package com.example.induzteckapp.viewmodel
-
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.induzteckapp.data.InduztekDbHelper
-import com.example.induzteckapp.data.InduztekPreferencias
-import com.example.induzteckapp.model.ClienteProtocolo
-import com.example.induzteckapp.model.Comuna
-import com.example.induzteckapp.model.CrearProtocoloUiState
-import com.example.induzteckapp.model.Equipo
-import com.example.induzteckapp.model.Instalacion
-import com.example.induzteckapp.model.Region
-import com.example.induzteckapp.model.TipoEquipo
-import com.example.induzteckapp.model.TipoPrueba
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-class CrearProtocoloViewModel(
-    application: Application
-) : AndroidViewModel(application) {
-
-    private val dbHelper = InduztekDbHelper(application)
-
-    // Solo se consulta la identidad de la sesión iniciada.
-    // Las preferencias no almacenan el protocolo ni sus formularios.
-    private val preferencias = InduztekPreferencias(application)
-
-    private val _uiState = MutableStateFlow(CrearProtocoloUiState())
-    val uiState: StateFlow<CrearProtocoloUiState> = _uiState.asStateFlow()
-
-    init {
-        cargarDatosIniciales()
-    }
-
-    private fun cargarDatosIniciales() {
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(cargando = true, mensajeError = null)
-            }
-
-            try {
-                val datos = withContext(Dispatchers.IO) {
-                    Triple(
-                        dbHelper.obtenerClientesProtocolo(),
-                        dbHelper.obtenerComunas(),
-                        dbHelper.obtenerTiposEquipo()
-                    ) to dbHelper.obtenerRegiones()
-                }
-
-                _uiState.update {
-                    it.copy(
-                        clientes = datos.first.first,
-                        comunas = datos.first.second,
-                        tiposEquipo = datos.first.third,
-                        regiones = datos.second,
-                        cargando = false
-                    )
-                }
-            } catch (e: Exception) {
-                mostrarError("No fue posible cargar los catálogos desde SQLite.")
-                _uiState.update { it.copy(cargando = false) }
-            }
-        }
-    }
-
-    // ---------------------------------------------------------
-    // PASO 1: CLIENTE, INSTALACIÓN, EQUIPO Y PRUEBA
-    // ---------------------------------------------------------
-
-    fun seleccionarCliente(cliente: ClienteProtocolo) {
-        _uiState.update {
-            it.copy(
-                clienteSeleccionado = cliente,
-                instalaciones = emptyList(),
-                equipos = emptyList(),
-                instalacionSeleccionada = null,
-                equipoSeleccionado = null,
-                pruebaSeleccionada = null,
-                pruebasCompatibles = emptyList(),
-                parametrosPrueba = emptyList(),
-                mostrarFormularioInstalacion = false,
-                mostrarFormularioEquipo = false,
-                mensajeError = null
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val instalaciones = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerInstalacionesPorCliente(cliente.idUsuario)
-                }
-
-                _uiState.update { estado ->
-                    if (estado.clienteSeleccionado?.idUsuario == cliente.idUsuario) {
-                        estado.copy(instalaciones = instalaciones)
-                    } else {
-                        estado
-                    }
-                }
-            } catch (e: Exception) {
-                mostrarError("No fue posible cargar las instalaciones del cliente.")
-            }
-        }
-    }
-
-    fun seleccionarRegion(region: Region) {
-        _uiState.update {
-            it.copy(
-                regionSeleccionada = region,
-                comunaSeleccionada = null,
-                mensajeError = null
-            )
-        }
-    }
-
-    fun seleccionarComuna(comuna: Comuna) {
-        _uiState.update {
-            it.copy(comunaSeleccionada = comuna, mensajeError = null)
-        }
-    }
-
-    fun mostrarFormularioInstalacion(mostrar: Boolean) {
-        _uiState.update {
-            it.copy(
-                mostrarFormularioInstalacion = mostrar,
-                mensajeError = null
-            )
-        }
-    }
-
-    fun actualizarNombreInstalacion(valor: String) =
-        actualizar { it.copy(nombreInstalacion = valor) }
-
-    fun actualizarUbicacionInstalacion(valor: String) =
-        actualizar { it.copy(ubicacionInstalacion = valor) }
-
-    fun actualizarObservacionesAcceso(valor: String) =
-        actualizar { it.copy(observacionesAcceso = valor) }
-
-    fun crearInstalacion() {
-        val estado = _uiState.value
-        val cliente = estado.clienteSeleccionado
-        val comuna = estado.comunaSeleccionada
-
-        if (cliente == null) {
-            mostrarError("Primero debes seleccionar un cliente.")
-            return
-        }
-
-        if (estado.nombreInstalacion.isBlank()) {
-            mostrarError("Ingresa el nombre de la instalación.")
-            return
-        }
-
-        if (estado.ubicacionInstalacion.isBlank()) {
-            mostrarError("Ingresa la ubicación de la instalación.")
-            return
-        }
-
-        if (estado.regionSeleccionada == null || comuna == null) {
-            mostrarError("Selecciona una región y una comuna.")
-            return
-        }
-
-        if (comuna.idRegion != estado.regionSeleccionada.idRegion) {
-            mostrarError("La comuna seleccionada no corresponde a la región.")
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(guardando = true, mensajeError = null) }
-
-            try {
-                val idNuevo = withContext(Dispatchers.IO) {
-                    dbHelper.insertarInstalacionProtocolo(
-                        cliente.idUsuario,
-                        estado.nombreInstalacion.trim(),
-                        estado.ubicacionInstalacion.trim(),
-                        comuna.idComuna,
-                        estado.observacionesAcceso.trim().ifBlank { null }
-                    )
-                }
-
-                if (idNuevo <= 0L) {
-                    mostrarError("No fue posible registrar la instalación.")
-                    return@launch
-                }
-
-                val instalacionesActualizadas = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerInstalacionesPorCliente(cliente.idUsuario)
-                }
-
-                val nuevaInstalacion =
-                    instalacionesActualizadas.firstOrNull {
-                        it.idInstalacion == idNuevo
-                    }
-
-                _uiState.update {
-                    it.copy(
-                        instalaciones = instalacionesActualizadas,
-                        instalacionSeleccionada = nuevaInstalacion,
-                        equipos = emptyList(),
-                        equipoSeleccionado = null,
-                        pruebaSeleccionada = null,
-                        pruebasCompatibles = emptyList(),
-                        parametrosPrueba = emptyList(),
-                        mostrarFormularioInstalacion = false,
-                        mostrarFormularioEquipo = false,
-                        nombreInstalacion = "",
-                        ubicacionInstalacion = "",
-                        observacionesAcceso = "",
-                        regionSeleccionada = null,
-                        comunaSeleccionada = null,
-                        guardando = false,
-                        mensajeExito = "Instalación registrada correctamente."
-                    )
-                }
-            } catch (e: Exception) {
-                mostrarError(
-                    "No fue posible guardar la instalación. " +
-                            "Verifica los datos e inténtalo nuevamente."
-                )
-            } finally {
-                _uiState.update { it.copy(guardando = false) }
-            }
-        }
-    }
-
-    fun seleccionarInstalacion(instalacion: Instalacion) {
-        _uiState.update {
-            it.copy(
-                instalacionSeleccionada = instalacion,
-                equipos = emptyList(),
-                equipoSeleccionado = null,
-                pruebaSeleccionada = null,
-                pruebasCompatibles = emptyList(),
-                parametrosPrueba = emptyList(),
-                mostrarFormularioEquipo = false,
-                mensajeError = null
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val equipos = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerEquiposPorInstalacion(
-                        instalacion.idInstalacion
-                    )
-                }
-
-                _uiState.update { estado ->
-                    if (
-                        estado.instalacionSeleccionada?.idInstalacion ==
-                        instalacion.idInstalacion
-                    ) {
-                        estado.copy(equipos = equipos)
-                    } else {
-                        estado
-                    }
-                }
-            } catch (e: Exception) {
-                mostrarError("No fue posible cargar los equipos de la instalación.")
-            }
-        }
-    }
-
-    fun mostrarFormularioEquipo(mostrar: Boolean) {
-        _uiState.update {
-            it.copy(
-                mostrarFormularioEquipo = mostrar,
-                mensajeError = null
-            )
-        }
-    }
-
-    fun seleccionarTipoEquipo(tipo: TipoEquipo) {
-        _uiState.update {
-            it.copy(tipoEquipoSeleccionado = tipo, mensajeError = null)
-        }
-    }
-
-    fun actualizarTagEquipo(valor: String) =
-        actualizar { it.copy(tagEquipo = valor) }
-
-    fun actualizarMarcaEquipo(valor: String) =
-        actualizar { it.copy(marcaEquipo = valor) }
-
-    fun actualizarModeloEquipo(valor: String) =
-        actualizar { it.copy(modeloEquipo = valor) }
-
-    fun actualizarNumeroSerieEquipo(valor: String) =
-        actualizar { it.copy(numeroSerieEquipo = valor) }
-
-    fun actualizarPotenciaKva(valor: String) =
-        actualizar { it.copy(potenciaKva = valor) }
-
-    fun actualizarTensiones(valor: String) =
-        actualizar { it.copy(tensiones = valor) }
-
-    fun actualizarCorriente(valor: String) =
-        actualizar { it.copy(corriente = valor) }
-
-    fun actualizarMaxContactosUohm(valor: String) =
-        actualizar { it.copy(maxContactosUohm = valor) }
-
-    fun crearEquipo() {
-        val estado = _uiState.value
-        val instalacion = estado.instalacionSeleccionada
-        val tipo = estado.tipoEquipoSeleccionado
-
-        if (instalacion == null) {
-            mostrarError("Primero debes seleccionar una instalación.")
-            return
-        }
-
-        if (estado.tagEquipo.isBlank()) {
-            mostrarError("El TAG del equipo es obligatorio.")
-            return
-        }
-
-        if (tipo == null) {
-            mostrarError("Selecciona el tipo de equipo.")
-            return
-        }
-
-        val potencia = convertirNumeroOpcional(estado.potenciaKva, "potencia") ?: run {
-            if (estado.potenciaKva.isNotBlank()) return
-            null
-        }
-
-        val tensiones = convertirNumeroOpcional(estado.tensiones, "tensiones") ?: run {
-            if (estado.tensiones.isNotBlank()) return
-            null
-        }
-
-        val corriente = convertirNumeroOpcional(estado.corriente, "corriente") ?: run {
-            if (estado.corriente.isNotBlank()) return
-            null
-        }
-
-        val maxContactos = convertirNumeroOpcional(
-            estado.maxContactosUohm,
-            "resistencia máxima de contactos"
-        ) ?: run {
-            if (estado.maxContactosUohm.isNotBlank()) return
-            null
-        }
-
-        if (listOfNotNull(potencia, tensiones, corriente, maxContactos).any { it < 0 }) {
-            mostrarError("Los datos numéricos del equipo no pueden ser negativos.")
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(guardando = true, mensajeError = null) }
-
-            try {
-                val idNuevo = withContext(Dispatchers.IO) {
-                    dbHelper.insertarEquipoProtocolo(
-                        instalacion.idInstalacion,
-                        estado.tagEquipo.trim(),
-                        tipo.idTipoEquipo,
-                        estado.marcaEquipo.trim().ifBlank { null },
-                        estado.modeloEquipo.trim().ifBlank { null },
-                        estado.numeroSerieEquipo.trim().ifBlank { null },
-                        potencia,
-                        tensiones,
-                        corriente,
-                        maxContactos
-                    )
-                }
-
-                if (idNuevo <= 0L) {
-                    mostrarError(
-                        "No se pudo registrar el equipo. " +
-                                "Comprueba si ya existe ese TAG en la instalación."
-                    )
-                    return@launch
-                }
-
-                val equiposActualizados = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerEquiposPorInstalacion(
-                        instalacion.idInstalacion
-                    )
-                }
-
-                val nuevoEquipo = equiposActualizados.firstOrNull {
-                    it.idEquipo == idNuevo
-                }
-
-                _uiState.update {
-                    it.copy(
-                        equipos = equiposActualizados,
-                        equipoSeleccionado = nuevoEquipo,
-                        tipoEquipoSeleccionado = null,
-                        pruebaSeleccionada = null,
-                        pruebasCompatibles = emptyList(),
-                        parametrosPrueba = emptyList(),
-                        mostrarFormularioEquipo = false,
-                        tagEquipo = "",
-                        marcaEquipo = "",
-                        modeloEquipo = "",
-                        numeroSerieEquipo = "",
-                        potenciaKva = "",
-                        tensiones = "",
-                        corriente = "",
-                        maxContactosUohm = "",
-                        guardando = false,
-                        mensajeExito = "Equipo registrado correctamente."
-                    )
-                }
-
-                nuevoEquipo?.let { seleccionarEquipo(it) }
-            } catch (e: Exception) {
-                val mensaje = if (
-                    e.message?.contains("UNIQUE", ignoreCase = true) == true
-                ) {
-                    "Ese TAG ya existe en esta instalación."
-                } else {
-                    "No fue posible guardar el equipo. Verifica los datos."
-                }
-
-                mostrarError(mensaje)
-            } finally {
-                _uiState.update { it.copy(guardando = false) }
-            }
-        }
-    }
-
-    fun seleccionarEquipo(equipo: Equipo) {
-        _uiState.update {
-            it.copy(
-                equipoSeleccionado = equipo,
-                pruebaSeleccionada = null,
-                pruebasCompatibles = emptyList(),
-                parametrosPrueba = emptyList(),
-                mediciones = emptyMap(),
-                mensajeError = null
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val pruebas = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerPruebasCompatibles(equipo.idTipoEquipo)
-                }
-
-                _uiState.update { estado ->
-                    if (estado.equipoSeleccionado?.idEquipo == equipo.idEquipo) {
-                        estado.copy(pruebasCompatibles = pruebas)
-                    } else {
-                        estado
-                    }
-                }
-            } catch (e: Exception) {
-                mostrarError("No fue posible cargar las pruebas compatibles.")
-            }
-        }
-    }
-
-    fun seleccionarPrueba(prueba: TipoPrueba) {
-        _uiState.update {
-            it.copy(
-                pruebaSeleccionada = prueba,
-                parametrosPrueba = emptyList(),
-                mediciones = emptyMap(),
-                mensajeError = null
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val parametros = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerParametrosPorTipoPrueba(prueba.idTipoPrueba)
-                }
-
-                _uiState.update { estado ->
-                    if (
-                        estado.pruebaSeleccionada?.idTipoPrueba ==
-                        prueba.idTipoPrueba
-                    ) {
-                        estado.copy(parametrosPrueba = parametros)
-                    } else {
-                        estado
-                    }
-                }
-            } catch (e: Exception) {
-                mostrarError("No fue posible cargar los parámetros de la prueba.")
-            }
-        }
-    }
-
-    // ---------------------------------------------------------
-    // PASO 2: CONDICIONES AMBIENTALES
-    // ---------------------------------------------------------
-
-    fun actualizarTemperatura(valor: String) =
-        actualizar { it.copy(temperaturaC = valor) }
-
-    fun actualizarHumedad(valor: String) =
-        actualizar { it.copy(humedadPct = valor) }
-
-    // ---------------------------------------------------------
-    // PASO 3: MEDICIONES
-    // ---------------------------------------------------------
-
-    fun actualizarMedicion(codigo: String, valor: String) {
-        _uiState.update {
-            it.copy(
-                mediciones = it.mediciones + (codigo to valor),
-                mensajeError = null
-            )
-        }
-    }
-
-    fun actualizarUnidadAislacion(unidad: String) {
-        if (unidad != "MΩ" && unidad != "GΩ") return
-
-        _uiState.update {
-            it.copy(unidadAislacion = unidad, mensajeError = null)
-        }
-    }
-
-    // ---------------------------------------------------------
-    // NAVEGACIÓN Y VALIDACIÓN
-    // ---------------------------------------------------------
-
-    fun avanzarPaso() {
-        val estado = _uiState.value
-
-        when (estado.pasoActual) {
-            1 -> {
-                if (
-                    estado.clienteSeleccionado == null ||
-                    estado.instalacionSeleccionada == null ||
-                    estado.equipoSeleccionado == null ||
-                    estado.pruebaSeleccionada == null
-                ) {
-                    mostrarError(
-                        "Selecciona un cliente, instalación, equipo y prueba."
-                    )
-                    return
-                }
-            }
-
-            2 -> {
-                val temperatura = decimalValido(estado.temperaturaC)
-                val humedad = decimalValido(estado.humedadPct)
-
-                if (temperatura == null || temperatura !in -10.0..60.0) {
-                    mostrarError(
-                        "Ingresa una temperatura entre -10 y 60 °C, usando punto decimal."
-                    )
-                    return
-                }
-
-                if (humedad == null || humedad !in 0.0..100.0) {
-                    mostrarError(
-                        "Ingresa una humedad entre 0 y 100 %, usando punto decimal."
-                    )
-                    return
-                }
-            }
-
-            else -> return
-        }
-
-        _uiState.update {
-            it.copy(
-                pasoActual = (it.pasoActual + 1).coerceAtMost(3),
-                mensajeError = null,
-                mensajeExito = null
-            )
-        }
-    }
-
-    fun retrocederPaso() {
-        _uiState.update {
-            it.copy(
-                pasoActual = (it.pasoActual - 1).coerceAtLeast(1),
-                mensajeError = null
-            )
-        }
-    }
-
-    // ---------------------------------------------------------
-    // REGISTRO DEL PROTOCOLO
-    // ---------------------------------------------------------
-
-    fun guardarProtocolo() {
-        val estado = _uiState.value
-
-        if (estado.pasoActual != 3) return
-
-        val equipo = estado.equipoSeleccionado
-        val prueba = estado.pruebaSeleccionada
-
-        if (equipo == null || prueba == null) {
-            mostrarError("Falta seleccionar el equipo o la prueba.")
-            return
-        }
-
-        val temperatura = decimalValido(estado.temperaturaC)
-        val humedad = decimalValido(estado.humedadPct)
-
-        if (temperatura == null || temperatura !in -10.0..60.0) {
-            mostrarError("La temperatura no es válida.")
-            return
-        }
-
-        if (humedad == null || humedad !in 0.0..100.0) {
-            mostrarError("La humedad no es válida.")
-            return
-        }
-
-        val parametros = estado.parametrosPrueba
-
-        if (parametros.isEmpty()) {
-            mostrarError("La prueba no tiene parámetros configurados.")
-            return
-        }
-
-        val medicionesConvertidas = mutableMapOf<String, Double>()
-
-        for (parametro in parametros) {
-            val texto = estado.mediciones[parametro.codigo].orEmpty()
-
-            if (texto.isBlank()) {
-                mostrarError("Completa la medición: ${parametro.nombre}.")
-                return
-            }
-
-            val numero = decimalValido(texto)
-
-            if (numero == null) {
-                mostrarError(
-                    "La medición '${parametro.nombre}' debe ser numérica y usar punto decimal."
-                )
-                return
-            }
-
-            val esTiempo = parametro.codigo == "TIEMPO_ESPERADO" ||
-                    parametro.codigo == "TIEMPO_MEDIDO"
-
-            val esPosicionTap = parametro.codigo == "POS_TAP"
-
-            if (esPosicionTap && (numero < 1 || numero % 1.0 != 0.0)) {
-                mostrarError("La posición TAP debe ser un entero mayor o igual a 1.")
-                return
-            }
-
-            if (esTiempo && numero < 0.0) {
-                mostrarError("Los tiempos no pueden ser negativos.")
-                return
-            }
-
-            if (!esTiempo && numero <= 0.0) {
-                mostrarError(
-                    "La medición '${parametro.nombre}' debe ser mayor que cero."
-                )
-                return
-            }
-
-            // SQLite guarda las lecturas de aislación en MΩ.
-            // Si se ingresan en GΩ, se convierten antes del registro.
-            val valorFinal = if (
-                estado.unidadAislacion == "GΩ" &&
-                (parametro.codigo == "LEC_1MIN" ||
-                        parametro.codigo == "LEC_10MIN")
-            ) {
-                numero * 1000.0
-            } else {
-                numero
-            }
-
-            medicionesConvertidas[parametro.codigo] = valorFinal
-        }
-
-        val idUsuarioRegistra = preferencias.leerSesion()
-
-        if (idUsuarioRegistra <= 0L) {
-            mostrarError(
-                "No se encontró una sesión válida. Inicia sesión nuevamente."
-            )
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(guardando = true, mensajeError = null, mensajeExito = null)
-            }
-
-            try {
-
-                val fechaHora = SimpleDateFormat(
-                    "yyyy-MM-dd HH:mm:ss",
-                    Locale.getDefault()
-                ).format(Date())
-
-                val numeroProtocolo = withContext(Dispatchers.IO) {
-                    dbHelper.registrarProtocolo(
-                        equipo.idEquipo,
-                        idUsuarioRegistra,
-                        prueba.idTipoPrueba,
-                        fechaHora,
-                        temperatura,
-                        humedad,
-                        medicionesConvertidas
-                    )
-                }
-
-                _uiState.update {
-                    it.copy(
-                        guardando = false,
-                        mensajeExito =
-                            "Protocolo $numeroProtocolo registrado en terreno.",
-                        mensajeError = null
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        guardando = false,
-                        mensajeError =
-                            "No fue posible registrar el protocolo. " +
-                                    "No se confirmó el guardado; revisa los datos e inténtalo nuevamente."
-                    )
-                }
-            }
-        }
-    }
-
-    fun limpiarMensajes() {
-        _uiState.update {
-            it.copy(mensajeError = null, mensajeExito = null)
-        }
-    }
-
-    private fun actualizar(
-        cambio: (CrearProtocoloUiState) -> CrearProtocoloUiState
-    ) {
-        _uiState.update {
-            cambio(it).copy(mensajeError = null, mensajeExito = null)
-        }
-    }
-
-    private fun mostrarError(mensaje: String) {
-        _uiState.update {
-            it.copy(mensajeError = mensaje, mensajeExito = null)
-        }
-    }
-
-    private fun decimalValido(texto: String): Double? {
-        val limpio = texto.trim()
-
-        // No acepta coma, separadores de miles, NaN ni Infinity.
-        if (!limpio.matches(Regex("-?\\d+(\\.\\d+)?"))) return null
-
-        return limpio.toDoubleOrNull()?.takeIf { it.isFinite() }
-    }
-
-    private fun convertirNumeroOpcional(
-        texto: String,
-        nombreCampo: String
-    ): Double? {
-        if (texto.isBlank()) return null
-
-        val numero = decimalValido(texto)
-
-        if (numero == null) {
-            mostrarError(
-                "El campo '$nombreCampo' debe ser numérico y usar punto decimal."
-            )
-        }
-
-        return numero
-    }
-
-    override fun onCleared() {
-        dbHelper.close()
-        super.onCleared()
-    }
-}
-
-*/
