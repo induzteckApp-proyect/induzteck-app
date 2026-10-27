@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.induzteckapp.data.InduztekDbHelper
+import com.example.induzteckapp.data.InduztekPreferencias
 import com.example.induzteckapp.model.ClienteConsulta
+import com.example.induzteckapp.model.RolUsuario
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +16,7 @@ import kotlinx.coroutines.launch
 class ListaClientesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dbHelper = InduztekDbHelper(application)
+    private val preferencias = InduztekPreferencias(application)
 
     // Estado para la barra de búsqueda en tiempo real (CA-2.1)
     private val _searchQuery = MutableStateFlow("")
@@ -23,8 +26,22 @@ class ListaClientesViewModel(application: Application) : AndroidViewModel(applic
     private val _clientesState = MutableStateFlow<List<ClienteConsulta>>(emptyList())
     val clientesState: StateFlow<List<ClienteConsulta>> = _clientesState.asStateFlow()
 
+    private val _esTecnico = MutableStateFlow(false)
+    val esTecnico: StateFlow<Boolean> = _esTecnico.asStateFlow()
+
     init {
         cargarDatos()
+        verificarRolTecnico()
+    }
+
+    private fun verificarRolTecnico() {
+        val idUsuario = preferencias.leerSesion()
+        if (idUsuario > 0L) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val user = dbHelper.obtenerUsuarioPorId(idUsuario)
+                _esTecnico.value = user?.rol == RolUsuario.TECNICO_INGENIERO
+            }
+        }
     }
 
     // Actualiza la búsqueda y recarga los datos filtrados desde la base de datos local

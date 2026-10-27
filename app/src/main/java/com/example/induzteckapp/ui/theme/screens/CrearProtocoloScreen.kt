@@ -295,12 +295,20 @@ fun CrearProtocoloScreen(
         "Mediciones"
     )
 
+    val onSalirAccion = {
+        viewModel.guardarYMarcarObservadoOnExit(onVolver)
+    }
+
+    androidx.activity.compose.BackHandler {
+        onSalirAccion()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (estado.modoEdicion) "Editar protocolo" else "Nuevo protocolo") },
                 navigationIcon = {
-                    IconButton(onClick = onVolver) {
+                    IconButton(onClick = onSalirAccion) {
                         Icon(
                             painter = painterResource(R.drawable.ic_volver),
                             contentDescription = "Volver al inicio"

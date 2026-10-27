@@ -2,9 +2,11 @@ package com.example.induzteckapp.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.induzteckapp.data.ConvertidorImagen
 import com.example.induzteckapp.data.InduztekDbHelper
 import com.example.induzteckapp.data.InduztekPreferencias
 import com.example.induzteckapp.model.Usuario
@@ -77,18 +79,36 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
         _mensajeState.value = null
     }
 
-    fun onAvatarSeleccionado(context: Context, uri: Uri) {
+    fun onFotoCapturada(bitmap: Bitmap) {
         if (idUsuarioActivo == -1L) return
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                if (bytes != null && bytes.isNotEmpty()) {
+                val bytes = ConvertidorImagen.aBytes(bitmap)
+                _avatarBytes.value = bytes
+                dbHelper.actualizarAvatarBlob(idUsuarioActivo, bytes)
+                _mensajeState.value = "Avatar actualizado correctamente desde la cámara."
+            } catch (_: Exception) {
+                _mensajeState.value = "Error al guardar la foto de la cámara."
+            }
+        }
+    }
+
+    fun onImagenSeleccionada(context: Context, uri: Uri) {
+        if (idUsuarioActivo == -1L) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val bitmap = ConvertidorImagen.desdeUri(context, uri)
+                if (bitmap != null) {
+                    val bytes = ConvertidorImagen.aBytes(bitmap)
                     _avatarBytes.value = bytes
                     dbHelper.actualizarAvatarBlob(idUsuarioActivo, bytes)
-                    _mensajeState.value = "Avatar actualizado correctamente."
+                    _mensajeState.value = "Avatar actualizado correctamente desde la galería."
+                } else {
+                    _mensajeState.value = "No se pudo procesar la imagen seleccionada."
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _mensajeState.value = "Error al procesar la imagen seleccionada."
             }
         }

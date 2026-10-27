@@ -22,18 +22,3 @@ data class ProtocoloHistorial(
     val resultadoGlobal: Int?
         get() = pruebas.mapNotNull { if (it.realizada) it.idResultado else null }.maxOrNull()
 }
-
-data class PruebaHistorial(
-    val idPrueba: Long,
-    val nombre: String,
-    val elemento: String,
-    val realizada: Boolean,
-    val idResultado: Int?,
-    val mediciones: List<MedicionHistorial>
-)
-
-data class MedicionHistorial(
-    val nombre: String,
-    val valor: Double,
-    val unidad: String
-)

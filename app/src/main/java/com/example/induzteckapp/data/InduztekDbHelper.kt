@@ -42,7 +42,7 @@ class InduztekDbHelper(context: Context) :
     companion object {
 
         private const val NOMBRE_BD = "induztek.db"
-        private const val VERSION_BD = 2
+        private const val VERSION_BD = 3
 
         // =====================================================
         // TABLAS
@@ -109,6 +109,7 @@ class InduztekDbHelper(context: Context) :
                 id_rol INTEGER NOT NULL,
                 rut TEXT UNIQUE NOT NULL,
                 nombre TEXT NOT NULL,
+                apellido TEXT,
                 correo TEXT UNIQUE NOT NULL,
                 telefono TEXT,
                 password_hash TEXT NOT NULL,
@@ -514,6 +515,14 @@ class InduztekDbHelper(context: Context) :
 
             // Completar datos de demostración sin recrear las tablas.
             precargarDatos(db)
+        }
+
+        if (oldVersion < 3) {
+            if (!existeColumna(db, TABLA_USUARIO, "apellido")) {
+                db.execSQL(
+                    "ALTER TABLE $TABLA_USUARIO ADD COLUMN apellido TEXT"
+                )
+            }
         }
     }
 
@@ -1598,6 +1607,13 @@ class InduztekDbHelper(context: Context) :
             cursor.getBlob(indiceAvatar)
         }
 
+        val indiceApellido = cursor.getColumnIndex("apellido")
+        val apellido = if (indiceApellido != -1 && !cursor.isNull(indiceApellido)) {
+            cursor.getString(indiceApellido)
+        } else {
+            null
+        }
+
         val indiceGiro = cursor.getColumnIndexOrThrow("giro")
         val indiceContactoNombre =
             cursor.getColumnIndexOrThrow("contacto_nombre")
@@ -1615,6 +1631,7 @@ class InduztekDbHelper(context: Context) :
             nombre = cursor.getString(
                 cursor.getColumnIndexOrThrow("nombre")
             ),
+            apellido = apellido,
             correo = cursor.getString(
                 cursor.getColumnIndexOrThrow("correo")
             ),
@@ -1726,59 +1743,58 @@ class InduztekDbHelper(context: Context) :
         ORDER BY u.nombre ASC, i.nombre ASC, e.tag ASC
     """.trimIndent()
 
-        val cursor = db.rawQuery(query, arrayOf(filtro, filtro, filtro, filtro))
+        db.rawQuery(query, arrayOf(filtro, filtro, filtro, filtro)).use { cursor ->
+            if (cursor.moveToFirst()) {
+                do {
+                    val idUsuario = cursor.getInt(cursor.getColumnIndexOrThrow("id_usuario"))
+                    val clienteNombre = cursor.getString(cursor.getColumnIndexOrThrow("cliente_nombre")) ?: "Sin Nombre"
+                    val rut = cursor.getString(cursor.getColumnIndexOrThrow("rut")) ?: ""
 
-        if (cursor.moveToFirst()) {
-            do {
-                val idUsuario = cursor.getInt(cursor.getColumnIndexOrThrow("id_usuario"))
-                val clienteNombre = cursor.getString(cursor.getColumnIndexOrThrow("cliente_nombre")) ?: "Sin Nombre"
-                val rut = cursor.getString(cursor.getColumnIndexOrThrow("rut")) ?: ""
-
-                val cliente = clientesMap.getOrPut(idUsuario) {
-                    ClienteConsulta(
-                        idUsuario = idUsuario,
-                        nombreRazonSocial = clienteNombre,
-                        rut = rut,
-                        instalaciones = mutableListOf()
-                    )
-                }
-
-                if (!cursor.isNull(cursor.getColumnIndexOrThrow("id_instalacion"))) {
-                    val idInstalacion = cursor.getInt(cursor.getColumnIndexOrThrow("id_instalacion"))
-                    val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre")) ?: "Instalación"
-
-                    val instalacionesList = cliente.instalaciones as MutableList<InstalacionConsulta>
-                    var instalacion = instalacionesList.find { it.idInstalacion == idInstalacion }
-                    if (instalacion == null) {
-                        instalacion = InstalacionConsulta(
-                            idInstalacion = idInstalacion,
-                            nombre = instalacionNombre,
-                            equipos = mutableListOf()
+                    val cliente = clientesMap.getOrPut(idUsuario) {
+                        ClienteConsulta(
+                            idUsuario = idUsuario,
+                            nombreRazonSocial = clienteNombre,
+                            rut = rut,
+                            instalaciones = mutableListOf()
                         )
-                        instalacionesList.add(instalacion)
                     }
 
-                    if (!cursor.isNull(cursor.getColumnIndexOrThrow("id_equipo"))) {
-                        val idEquipo = cursor.getInt(cursor.getColumnIndexOrThrow("id_equipo"))
-                        val tag = cursor.getString(cursor.getColumnIndexOrThrow("tag")) ?: "TAG"
-                        val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo")) ?: "Equipo"
+                    if (!cursor.isNull(cursor.getColumnIndexOrThrow("id_instalacion"))) {
+                        val idInstalacion = cursor.getInt(cursor.getColumnIndexOrThrow("id_instalacion"))
+                        val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre")) ?: "Instalación"
 
-                        val equiposList = instalacion.equipos as MutableList<EquipoConsulta>
-                        if (equiposList.none { it.idEquipo == idEquipo }) {
-                            equiposList.add(
-                                EquipoConsulta(
-                                    idEquipo = idEquipo,
-                                    tag = tag,
-                                    tipoEquipo = tipoEquipo,
-                                    instalacionNombre = instalacionNombre
-                                )
+                        val instalacionesList = cliente.instalaciones as MutableList<InstalacionConsulta>
+                        var instalacion = instalacionesList.find { it.idInstalacion == idInstalacion }
+                        if (instalacion == null) {
+                            instalacion = InstalacionConsulta(
+                                idInstalacion = idInstalacion,
+                                nombre = instalacionNombre,
+                                equipos = mutableListOf()
                             )
+                            instalacionesList.add(instalacion)
+                        }
+
+                        if (!cursor.isNull(cursor.getColumnIndexOrThrow("id_equipo"))) {
+                            val idEquipo = cursor.getInt(cursor.getColumnIndexOrThrow("id_equipo"))
+                            val tag = cursor.getString(cursor.getColumnIndexOrThrow("tag")) ?: "TAG"
+                            val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo")) ?: "Equipo"
+
+                            val equiposList = instalacion.equipos as MutableList<EquipoConsulta>
+                            if (equiposList.none { it.idEquipo == idEquipo }) {
+                                equiposList.add(
+                                    EquipoConsulta(
+                                        idEquipo = idEquipo,
+                                        tag = tag,
+                                        tipoEquipo = tipoEquipo,
+                                        instalacionNombre = instalacionNombre
+                                    )
+                                )
+                            }
                         }
                     }
-                }
-            } while (cursor.moveToNext())
+                } while (cursor.moveToNext())
+            }
         }
-        cursor.close()
         return clientesMap.values.toList()
     }
 
@@ -1807,29 +1823,29 @@ class InduztekDbHelper(context: Context) :
         ORDER BY p.fecha_hora_prueba DESC
     """.trimIndent()
 
-        val cursor = db.rawQuery(query, arrayOf(idEquipo.toString()))
-        if (cursor.moveToFirst()) {
-            do {
-                val idProtocolo = cursor.getInt(cursor.getColumnIndexOrThrow("id_protocolo"))
-                val numero = cursor.getString(cursor.getColumnIndexOrThrow("numero")) ?: ""
-                val fecha = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba")) ?: ""
-                val estado = cursor.getString(cursor.getColumnIndexOrThrow("estado")) ?: "Registrado"
-                val tecnicoNombre = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre")) ?: "Técnico"
-                val resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global")) ?: "Aprobado"
+        db.rawQuery(query, arrayOf(idEquipo.toString())).use { cursor ->
+            if (cursor.moveToFirst()) {
+                do {
+                    val idProtocolo = cursor.getInt(cursor.getColumnIndexOrThrow("id_protocolo"))
+                    val numero = cursor.getString(cursor.getColumnIndexOrThrow("numero")) ?: ""
+                    val fecha = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba")) ?: ""
+                    val estado = cursor.getString(cursor.getColumnIndexOrThrow("estado")) ?: "Registrado"
+                    val tecnicoNombre = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre")) ?: "Técnico"
+                    val resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global")) ?: "Aprobado"
 
-                historial.add(
-                    ProtocoloResumen(
-                        idProtocolo = idProtocolo,
-                        numeroProtocolo = numero,
-                        fechaHora = fecha,
-                        estado = estado,
-                        resultadoGlobal = resultadoGlobal,
-                        tecnicoResponsable = tecnicoNombre
+                    historial.add(
+                        ProtocoloResumen(
+                            idProtocolo = idProtocolo,
+                            numeroProtocolo = numero,
+                            fechaHora = fecha,
+                            estado = estado,
+                            resultadoGlobal = resultadoGlobal,
+                            tecnicoResponsable = tecnicoNombre
+                        )
                     )
-                )
-            } while (cursor.moveToNext())
+                } while (cursor.moveToNext())
+            }
         }
-        cursor.close()
         return historial
     }
 
@@ -1850,7 +1866,7 @@ class InduztekDbHelper(context: Context) :
             ORDER BY i.nombre ASC, e.tag ASC
         """.trimIndent()
 
-        val cursor = db.rawQuery(
+        db.rawQuery(
             query,
             arrayOf(
                 idUsuarioCliente.toString(),
@@ -1858,41 +1874,40 @@ class InduztekDbHelper(context: Context) :
                 filtro,
                 filtro
             )
-        )
+        ).use { cursor ->
+            if (cursor.moveToFirst()) {
+                do {
+                    val idInstalacion = cursor.getInt(cursor.getColumnIndexOrThrow("id_instalacion"))
+                    val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre"))
 
-        if (cursor.moveToFirst()) {
-            do {
-                val idInstalacion = cursor.getInt(cursor.getColumnIndexOrThrow("id_instalacion"))
-                val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre"))
-
-                val instalacion = instalacionesMap.getOrPut(idInstalacion) {
-                    InstalacionConsulta(
-                        idInstalacion = idInstalacion,
-                        nombre = instalacionNombre,
-                        equipos = mutableListOf()
-                    )
-                }
-
-                if (!cursor.isNull(cursor.getColumnIndexOrThrow("id_equipo"))) {
-                    val idEquipo = cursor.getInt(cursor.getColumnIndexOrThrow("id_equipo"))
-                    val tag = cursor.getString(cursor.getColumnIndexOrThrow("tag"))
-                    val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo"))
-
-                    val equiposList = instalacion.equipos as MutableList<EquipoConsulta>
-                    if (equiposList.none { it.idEquipo == idEquipo }) {
-                        equiposList.add(
-                            EquipoConsulta(
-                                idEquipo = idEquipo,
-                                tag = tag,
-                                tipoEquipo = tipoEquipo,
-                                instalacionNombre = instalacionNombre
-                            )
+                    val instalacion = instalacionesMap.getOrPut(idInstalacion) {
+                        InstalacionConsulta(
+                            idInstalacion = idInstalacion,
+                            nombre = instalacionNombre,
+                            equipos = mutableListOf()
                         )
                     }
-                }
-            } while (cursor.moveToNext())
+
+                    if (!cursor.isNull(cursor.getColumnIndexOrThrow("id_equipo"))) {
+                        val idEquipo = cursor.getInt(cursor.getColumnIndexOrThrow("id_equipo"))
+                        val tag = cursor.getString(cursor.getColumnIndexOrThrow("tag"))
+                        val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo"))
+
+                        val equiposList = instalacion.equipos as MutableList<EquipoConsulta>
+                        if (equiposList.none { it.idEquipo == idEquipo }) {
+                            equiposList.add(
+                                EquipoConsulta(
+                                    idEquipo = idEquipo,
+                                    tag = tag,
+                                    tipoEquipo = tipoEquipo,
+                                    instalacionNombre = instalacionNombre
+                                )
+                            )
+                        }
+                    }
+                } while (cursor.moveToNext())
+            }
         }
-        cursor.close()
         return instalacionesMap.values.toList()
     }
 
@@ -1923,29 +1938,29 @@ class InduztekDbHelper(context: Context) :
             ORDER BY p.fecha_hora_prueba DESC
         """.trimIndent()
 
-        val cursor = db.rawQuery(query, arrayOf(idEquipo.toString()))
-        if (cursor.moveToFirst()) {
-            do {
-                val estadoCodigo = cursor.getString(cursor.getColumnIndexOrThrow("estado_codigo"))
-                val estadoEtiqueta = if (estadoCodigo == "FORMALIZADO") {
-                    "Formalizado"
-                } else {
-                    "Pendiente de formalización"
-                }
+        db.rawQuery(query, arrayOf(idEquipo.toString())).use { cursor ->
+            if (cursor.moveToFirst()) {
+                do {
+                    val estadoCodigo = cursor.getString(cursor.getColumnIndexOrThrow("estado_codigo"))
+                    val estadoEtiqueta = if (estadoCodigo == "FORMALIZADO") {
+                        "Formalizado"
+                    } else {
+                        "Pendiente de formalización"
+                    }
 
-                historial.add(
-                    ProtocoloResumen(
-                        idProtocolo = cursor.getInt(cursor.getColumnIndexOrThrow("id_protocolo")),
-                        numeroProtocolo = cursor.getString(cursor.getColumnIndexOrThrow("numero")),
-                        fechaHora = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba")),
-                        estado = estadoEtiqueta,
-                        resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global")),
-                        tecnicoResponsable = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre"))
+                    historial.add(
+                        ProtocoloResumen(
+                            idProtocolo = cursor.getInt(cursor.getColumnIndexOrThrow("id_protocolo")),
+                            numeroProtocolo = cursor.getString(cursor.getColumnIndexOrThrow("numero")),
+                            fechaHora = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba")),
+                            estado = estadoEtiqueta,
+                            resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global")),
+                            tecnicoResponsable = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre"))
+                        )
                     )
-                )
-            } while (cursor.moveToNext())
+                } while (cursor.moveToNext())
+            }
         }
-        cursor.close()
         return historial
     }
 
@@ -1980,25 +1995,39 @@ class InduztekDbHelper(context: Context) :
             WHERE p.id_protocolo = ?
         """.trimIndent()
 
-        val cursor = db.rawQuery(queryCabecera, arrayOf(idProtocolo.toString()))
-        if (!cursor.moveToFirst()) {
-            cursor.close()
-            return null
-        }
+        var numero = ""
+        var fechaHora = ""
+        var observaciones = ""
+        var temp = ""
+        var hum = ""
+        var estadoCodigo = ""
+        var tecnicoNombre = ""
+        var clienteNombre = ""
+        var instalacionNombre = ""
+        var equipoTag = ""
+        var tipoEquipo = ""
+        var resultadoGlobal = ""
 
-        val numero = cursor.getString(cursor.getColumnIndexOrThrow("numero"))
-        val fechaHora = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba"))
-        val observaciones = cursor.getString(cursor.getColumnIndexOrThrow("observaciones")) ?: ""
-        val temp = cursor.getString(cursor.getColumnIndexOrThrow("temperatura_c")) ?: "20"
-        val hum = cursor.getString(cursor.getColumnIndexOrThrow("humedad_pct")) ?: "45"
-        val estadoCodigo = cursor.getString(cursor.getColumnIndexOrThrow("estado_codigo"))
-        val tecnicoNombre = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre"))
-        val clienteNombre = cursor.getString(cursor.getColumnIndexOrThrow("cliente_nombre"))
-        val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre"))
-        val equipoTag = cursor.getString(cursor.getColumnIndexOrThrow("equipo_tag"))
-        val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo"))
-        val resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global"))
-        cursor.close()
+        val existe = db.rawQuery(queryCabecera, arrayOf(idProtocolo.toString())).use { cursor ->
+            if (!cursor.moveToFirst()) {
+                false
+            } else {
+                numero = cursor.getString(cursor.getColumnIndexOrThrow("numero"))
+                fechaHora = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba"))
+                observaciones = cursor.getString(cursor.getColumnIndexOrThrow("observaciones")) ?: ""
+                temp = cursor.getString(cursor.getColumnIndexOrThrow("temperatura_c")) ?: "20"
+                hum = cursor.getString(cursor.getColumnIndexOrThrow("humedad_pct")) ?: "45"
+                estadoCodigo = cursor.getString(cursor.getColumnIndexOrThrow("estado_codigo"))
+                tecnicoNombre = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre"))
+                clienteNombre = cursor.getString(cursor.getColumnIndexOrThrow("cliente_nombre"))
+                instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre"))
+                equipoTag = cursor.getString(cursor.getColumnIndexOrThrow("equipo_tag"))
+                tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo"))
+                resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global"))
+                true
+            }
+        }
+        if (!existe) return null
 
         val estadoEtiqueta = if (estadoCodigo == "FORMALIZADO") {
             "Formalizado"
@@ -2015,6 +2044,12 @@ class InduztekDbHelper(context: Context) :
                     FROM $TABLA_MEDICION m
                     WHERE m.id_prueba = pr.id_prueba
                 ), '-') AS valor_medido,
+                COALESCE((
+                    SELECT GROUP_CONCAT(DISTINCT pa.unidad)
+                    FROM $TABLA_MEDICION m
+                    JOIN $TABLA_PARAMETRO pa ON pa.id_parametro = m.id_parametro
+                    WHERE m.id_prueba = pr.id_prueba
+                ), '-') AS unidad_medida,
                 CASE pr.id_resultado
                     WHEN $RESULTADO_APROBADO THEN 'Aprobado'
                     WHEN $RESULTADO_OBSERVADO THEN 'Observado'
@@ -2026,24 +2061,25 @@ class InduztekDbHelper(context: Context) :
             ORDER BY pr.id_prueba ASC
         """.trimIndent()
 
-        val cursorPruebas = db.rawQuery(queryPruebas, arrayOf(idProtocolo.toString()))
-        if (cursorPruebas.moveToFirst()) {
-            do {
-                val valMedido = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("valor_medido")) ?: "-"
-                pruebasList.add(
-                    PruebaDetalle(
-                        idPrueba = cursorPruebas.getInt(cursorPruebas.getColumnIndexOrThrow("id_prueba")),
-                        tipoPruebaNombre = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("tipo_prueba")),
-                        elemento = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("elemento")),
-                        momento = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("momento")),
-                        valorMedido = valMedido,
-                        unidadMedida = "MΩ",
-                        resultado = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("resultado"))
+        db.rawQuery(queryPruebas, arrayOf(idProtocolo.toString())).use { cursorPruebas ->
+            if (cursorPruebas.moveToFirst()) {
+                do {
+                    val valMedido = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("valor_medido")) ?: "-"
+                    val unidadMed = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("unidad_medida")) ?: "-"
+                    pruebasList.add(
+                        PruebaDetalle(
+                            idPrueba = cursorPruebas.getInt(cursorPruebas.getColumnIndexOrThrow("id_prueba")),
+                            tipoPruebaNombre = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("tipo_prueba")),
+                            elemento = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("elemento")),
+                            momento = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("momento")),
+                            valorMedido = valMedido,
+                            unidadMedida = unidadMed,
+                            resultado = cursorPruebas.getString(cursorPruebas.getColumnIndexOrThrow("resultado"))
+                        )
                     )
-                )
-            } while (cursorPruebas.moveToNext())
+                } while (cursorPruebas.moveToNext())
+            }
         }
-        cursorPruebas.close()
 
         return ProtocoloDetalle(
             idProtocolo = idProtocolo,
@@ -2889,25 +2925,39 @@ class InduztekDbHelper(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
+            val elementoLimpio = elemento?.trim()?.ifBlank { null }
             val pendienteId = db.rawQuery(
                 """
                 SELECT id_prueba FROM $TABLA_PRUEBA
                 WHERE id_protocolo = ? AND id_tipo_prueba = ?
-                  AND realizada = 0 AND elemento IS NULL
-                ORDER BY id_prueba LIMIT 1
+                  AND (
+                      (realizada = 0 AND elemento IS NULL)
+                   OR (? IS NOT NULL AND LOWER(elemento) = LOWER(?))
+                   OR (? IS NULL AND elemento IS NULL)
+                  )
+                ORDER BY realizada ASC, id_prueba LIMIT 1
                 """.trimIndent(),
-                arrayOf(idProtocolo.toString(), idTipoPrueba.toString())
+                arrayOf(
+                    idProtocolo.toString(),
+                    idTipoPrueba.toString(),
+                    elementoLimpio ?: "",
+                    elementoLimpio ?: "",
+                    elementoLimpio ?: ""
+                )
             ).use { c -> if (c.moveToFirst()) c.getLong(0) else null }
+
             val cvPrueba = ContentValues().apply {
                 put("id_protocolo", idProtocolo)
                 put("id_tipo_prueba", idTipoPrueba)
-                if (elemento.isNullOrBlank()) putNull("elemento") else put("elemento", elemento.trim())
+                if (elementoLimpio == null) putNull("elemento") else put("elemento", elementoLimpio)
                 put("momento", "UNICA")
                 put("realizada", 1)
                 putNull("motivo_no_realizada")
                 put("id_resultado", idResultado)
             }
+
             val idPrueba = if (pendienteId != null) {
+                db.delete(TABLA_MEDICION, "id_prueba = ?", arrayOf(pendienteId.toString()))
                 db.update(TABLA_PRUEBA, cvPrueba, "id_prueba = ?", arrayOf(pendienteId.toString()))
                 pendienteId
             } else {
@@ -3038,11 +3088,33 @@ class InduztekDbHelper(context: Context) :
     ): Boolean {
         return readableDatabase.rawQuery(
             """
-            SELECT 1 FROM $TABLA_PROTOCOLO
-            WHERE id_protocolo = ? AND id_usuario_registra = ?
+            SELECT 1 FROM $TABLA_PROTOCOLO p
+            INNER JOIN $TABLA_ESTADO_PROTOCOLO ep ON ep.id_estado = p.id_estado
+            WHERE p.id_protocolo = ? AND p.id_usuario_registra = ?
+              AND ep.codigo NOT IN ('FORMALIZADO', 'ANULADO')
             """.trimIndent(),
             arrayOf(idProtocolo.toString(), idUsuarioRegistra.toString())
         ).use { it.moveToFirst() }
+    }
+
+    fun guardarYMarcarObservado(idProtocolo: Long, idUsuario: Long) {
+        val db = writableDatabase
+        val idEstadoObservado = db.rawQuery(
+            "SELECT id_estado FROM $TABLA_ESTADO_PROTOCOLO WHERE codigo = ?",
+            arrayOf("OBSERVADO")
+        ).use { c ->
+            if (c.moveToFirst()) c.getLong(0) else null
+        } ?: return
+
+        val cv = ContentValues().apply {
+            put("id_estado", idEstadoObservado)
+        }
+        db.update(
+            TABLA_PROTOCOLO,
+            cv,
+            "id_protocolo = ? AND id_usuario_registra = ?",
+            arrayOf(idProtocolo.toString(), idUsuario.toString())
+        )
     }
 
     fun obtenerTiposPruebaCompletados(idProtocolo: Long): Set<Long> {

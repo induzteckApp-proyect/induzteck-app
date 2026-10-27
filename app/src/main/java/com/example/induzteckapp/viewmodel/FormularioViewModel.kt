@@ -452,13 +452,8 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
                 return null
             }
 
-            // El apellido se concatena porque la tabla almacena
-            // el nombre completo en una sola columna.
-            val nombreCompleto = if (estado.apellido.isNotBlank()) {
-                "${estado.nombre.trim()} ${estado.apellido.trim()}"
-            } else {
-                estado.nombre.trim()
-            }
+            val primerNombre = estado.nombre.trim()
+            val apellidoIngresado = estado.apellido.trim().ifBlank { null }
 
             // Se conserva la función de seguridad existente.
             val passwordHash = generarResumenContrasena(estado.contrasena)
@@ -466,7 +461,10 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
             val valores = ContentValues().apply {
                 put("id_rol", idRolDb)
                 put("rut", rutNormalizado)
-                put("nombre", nombreCompleto)
+                put("nombre", primerNombre)
+                if (apellidoIngresado != null) {
+                    put("apellido", apellidoIngresado)
+                }
                 put("correo", correoNormalizado)
                 put("telefono", estado.telefono)
                 put("password_hash", passwordHash)
@@ -501,13 +499,12 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             // El objeto devuelto refleja los datos guardados.
-            // El apellido ya forma parte de nombreCompleto.
             val usuarioRegistrado = Usuario(
                 idUsuario = idGenerado,
                 rol = rolSeleccionado,
                 rut = rutNormalizado,
-                nombre = nombreCompleto,
-                apellido = null,
+                nombre = primerNombre,
+                apellido = apellidoIngresado,
                 correo = correoNormalizado,
                 telefono = estado.telefono,
                 passwordHash = passwordHash,

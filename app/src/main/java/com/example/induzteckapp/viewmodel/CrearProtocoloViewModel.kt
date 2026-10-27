@@ -1207,6 +1207,52 @@ class CrearProtocoloViewModel(
         return limpio.toDoubleOrNull()?.takeIf { it.isFinite() }
     }
 
+    fun guardarYMarcarObservadoOnExit(onCompletado: () -> Unit) {
+        val estado = _uiState.value
+        if (estado.protocoloFinalizado) {
+            onCompletado()
+            return
+        }
+        val idBorrador = estado.idProtocoloBorrador
+        val userId = preferencias.leerSesion()
+
+        if (idBorrador != null && userId > 0L) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    dbHelper.guardarYMarcarObservado(idBorrador, userId)
+                } catch (_: Exception) {}
+                withContext(Dispatchers.Main) {
+                    onCompletado()
+                }
+            }
+        } else {
+            val equipo = estado.equipoSeleccionado
+            val temp = decimalValido(estado.temperaturaC) ?: 20.0
+            val hum = decimalValido(estado.humedadPct) ?: 45.0
+            if (equipo != null && userId > 0L) {
+                viewModelScope.launch(Dispatchers.IO) {
+                    try {
+                        val fechaHora = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                        val nuevoId = dbHelper.guardarCabeceraBorrador(
+                            null, equipo.idEquipo, userId, fechaHora, temp, hum
+                        )
+                        if (estado.pruebasSeleccionadas.isNotEmpty()) {
+                            dbHelper.guardarPruebasSeleccionadasBorrador(
+                                nuevoId, estado.pruebasSeleccionadas.map { it.idTipoPrueba }
+                            )
+                        }
+                        dbHelper.guardarYMarcarObservado(nuevoId, userId)
+                    } catch (_: Exception) {}
+                    withContext(Dispatchers.Main) {
+                        onCompletado()
+                    }
+                }
+            } else {
+                onCompletado()
+            }
+        }
+    }
+
     override fun onCleared() {
         dbHelper.close()
         super.onCleared()

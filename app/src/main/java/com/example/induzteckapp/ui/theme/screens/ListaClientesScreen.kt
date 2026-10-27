@@ -55,6 +55,7 @@ fun ListaClientesScreen(
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val clientes by viewModel.clientesState.collectAsState()
+    val esTecnico by viewModel.esTecnico.collectAsState()
 
     Scaffold(
         topBar = {
@@ -101,7 +102,8 @@ fun ListaClientesScreen(
                             viewModel.toggleEquipoExpansion(cliente.idUsuario, idEquipo)
                         },
                         onProtocoloClick = onProtocoloClick,
-                        onEditarProtocolo = onEditarProtocolo
+                        onEditarProtocolo = onEditarProtocolo,
+                        esTecnico = esTecnico
                     )
                 }
             }
@@ -115,7 +117,8 @@ fun ClienteCardItem(
     onClienteClick: () -> Unit,
     onEquipoClick: (Int) -> Unit,
     onProtocoloClick: (Int) -> Unit,
-    onEditarProtocolo: (Int) -> Unit = {}
+    onEditarProtocolo: (Int) -> Unit = {},
+    esTecnico: Boolean = false
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -159,7 +162,8 @@ fun ClienteCardItem(
                             equipo = equipo,
                             onEquipoClick = { onEquipoClick(equipo.idEquipo) },
                             onProtocoloClick = onProtocoloClick,
-                            onEditarProtocolo = onEditarProtocolo
+                            onEditarProtocolo = onEditarProtocolo,
+                            esTecnico = esTecnico
                         )
                     }
                 }
@@ -173,7 +177,8 @@ fun EquipoCardItem(
     equipo: EquipoConsulta,
     onEquipoClick: () -> Unit,
     onProtocoloClick: (Int) -> Unit,
-    onEditarProtocolo: (Int) -> Unit = {}
+    onEditarProtocolo: (Int) -> Unit = {},
+    esTecnico: Boolean = false
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -226,10 +231,18 @@ fun EquipoCardItem(
                 }
 
                 equipo.historialProtocolos.forEach { protocolo ->
+                    val esModificable = esTecnico &&
+                        protocolo.estado != "Formalizado" &&
+                        protocolo.estado != "FORMALIZADO" &&
+                        protocolo.estado != "Anulado" &&
+                        protocolo.estado != "ANULADO"
+
                     ProtocoloResumenItem(
                         protocolo = protocolo,
                         onClick = { onProtocoloClick(protocolo.idProtocolo) },
-                        onEditar = { onEditarProtocolo(protocolo.idProtocolo) }
+                        onEditar = if (esModificable) {
+                            { onEditarProtocolo(protocolo.idProtocolo) }
+                        } else null
                     )
                 }
             }
