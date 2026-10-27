@@ -17,6 +17,23 @@ import com.example.induzteckapp.model.ProtocoloDetalle
 import com.example.induzteckapp.model.ProtocoloResumen
 import com.example.induzteckapp.model.PruebaDetalle
 
+import com.example.induzteckapp.model.ClienteProtocolo
+import com.example.induzteckapp.model.Comuna
+import com.example.induzteckapp.model.Equipo
+import com.example.induzteckapp.model.Instalacion
+import com.example.induzteckapp.model.TipoEquipo
+import com.example.induzteckapp.model.TipoPrueba
+
+import android.database.sqlite.SQLiteConstraintException
+import java.util.Locale
+
+import com.example.induzteckapp.model.Region
+
+import com.example.induzteckapp.model.ParametroPrueba
+import com.example.induzteckapp.model.ProtocoloHistorial
+import com.example.induzteckapp.model.PruebaHistorial
+import com.example.induzteckapp.model.MedicionHistorial
+
 class InduztekDbHelper(context: Context) :
     SQLiteOpenHelper(context, NOMBRE_BD, null, VERSION_BD) {
 
@@ -2007,320 +2024,1164 @@ class InduztekDbHelper(context: Context) :
         )
     }
 
-}
 
+    // =========================================================
+    // HU-04: CONSULTAS PARA EL REGISTRO DE PROTOCOLOS
+    // =========================================================
 
-/*
-package com.example.induzteckapp.data
+    /**
+     * Obtiene los clientes activos registrados en SQLite.
+     * No devuelve usuarios con el rol de técnico.
+     */
+    fun obtenerClientesProtocolo(): List<ClienteProtocolo> {
+        val consulta = """
+            SELECT
+                u.id_usuario,
+                u.rut,
+                u.nombre,
+                u.correo
+            FROM $TABLA_USUARIO u
+            INNER JOIN $TABLA_ROL r
+                ON r.id_rol = u.id_rol
+            WHERE r.codigo = ?
+              AND u.activo = 1
+            ORDER BY u.nombre COLLATE NOCASE
+        """.trimIndent()
 
-import android.content.ContentValues
-import android.content.Context
-import android.database.Cursor
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
-
-class InduztekDbHelper(context: Context) :
-    SQLiteOpenHelper(context, NOMBRE_BD, null, VERSION_BD) {
-
-    companion object {
-        private const val NOMBRE_BD = "induztek.db"
-        private const val VERSION_BD = 1
-
-        // Tablas del Sistema
-        const val TABLA_ROL = "rol"
-        const val TABLA_PERMISO = "permiso"
-        const val TABLA_ROL_PERMISO = "rol_permiso"
-        const val TABLA_USUARIO = "usuario"
-        const val TABLA_REGION = "region"
-        const val TABLA_COMUNA = "comuna"
-        const val TABLA_INSTALACION = "instalacion"
-        const val TABLA_TIPO_EQUIPO = "tipo_equipo"
-        const val TABLA_EQUIPO = "equipo"
-        const val TABLA_ESTADO_PROTOCOLO = "estado_protocolo"
-        const val TABLA_PROTOCOLO = "protocolo"
-        const val TABLA_TIPO_PRUEBA = "tipo_prueba"
-        const val TABLA_PARAMETRO = "parametro"
-        const val TABLA_PRUEBA = "prueba"
-        const val TABLA_MEDICION = "medicion"
-
-        // Sentencias SQL de Creación (DDL)
-        private const val SQL_CREAR_ROL = """
-            CREATE TABLE $TABLA_ROL (
-                id_rol INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL,
-                nombre TEXT NOT NULL
-            )
-        """
-
-        private const val SQL_CREAR_PERMISO = """
-            CREATE TABLE $TABLA_PERMISO (
-                id_permiso INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL,
-                descripcion TEXT
-            )
-        """
-
-        private const val SQL_CREAR_ROL_PERMISO = """
-            CREATE TABLE $TABLA_ROL_PERMISO (
-                id_rol INTEGER NOT NULL,
-                id_permiso INTEGER NOT NULL,
-                PRIMARY KEY (id_rol, id_permiso),
-                FOREIGN KEY(id_rol) REFERENCES $TABLA_ROL(id_rol),
-                FOREIGN KEY(id_permiso) REFERENCES $TABLA_PERMISO(id_permiso)
-            )
-        """
-
-        private const val SQL_CREAR_USUARIO = """
-            CREATE TABLE $TABLA_USUARIO (
-                id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
-                id_rol INTEGER NOT NULL,
-                rut TEXT UNIQUE NOT NULL,
-                nombre TEXT NOT NULL,
-                correo TEXT UNIQUE NOT NULL,
-                telefono TEXT,
-                password_hash TEXT NOT NULL,
-                activo INTEGER NOT NULL DEFAULT 1,
-                giro TEXT,
-                contacto_nombre TEXT,
-                contacto_cargo TEXT,
-                avatar_uri TEXT,
-                FOREIGN KEY(id_rol) REFERENCES $TABLA_ROL(id_rol)
-            )
-        """
-
-        private const val SQL_CREAR_REGION = """
-            CREATE TABLE $TABLA_REGION (
-                id_region INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL
-            )
-        """
-
-        private const val SQL_CREAR_COMUNA = """
-            CREATE TABLE $TABLA_COMUNA (
-                id_comuna INTEGER PRIMARY KEY AUTOINCREMENT,
-                id_region INTEGER NOT NULL,
-                nombre TEXT NOT NULL,
-                FOREIGN KEY(id_region) REFERENCES $TABLA_REGION(id_region)
-            )
-        """
-
-        private const val SQL_CREAR_INSTALACION = """
-            CREATE TABLE $TABLA_INSTALACION (
-                id_instalacion INTEGER PRIMARY KEY AUTOINCREMENT,
-                id_usuario_cliente INTEGER NOT NULL,
-                nombre TEXT NOT NULL,
-                ubicacion TEXT,
-                id_comuna INTEGER NOT NULL,
-                observaciones_acceso TEXT,
-                FOREIGN KEY(id_usuario_cliente) REFERENCES $TABLA_USUARIO(id_usuario),
-                FOREIGN KEY(id_comuna) REFERENCES $TABLA_COMUNA(id_comuna)
-            )
-        """
-
-        private const val SQL_CREAR_TIPO_EQUIPO = """
-            CREATE TABLE $TABLA_TIPO_EQUIPO (
-                id_tipo_equipo INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT UNIQUE NOT NULL,
-                clasificacion TEXT NOT NULL
-            )
-        """
-
-        private const val SQL_CREAR_EQUIPO = """
-            CREATE TABLE $TABLA_EQUIPO (
-                id_equipo INTEGER PRIMARY KEY AUTOINCREMENT,
-                id_instalacion INTEGER NOT NULL,
-                tag TEXT NOT NULL,
-                id_tipo_equipo INTEGER NOT NULL,
-                marca TEXT,
-                modelo TEXT,
-                numero_serie TEXT,
-                potencia_kva REAL,
-                tensiones REAL,
-                corriente REAL,
-                max_contactos_uohm REAL,
-                FOREIGN KEY(id_instalacion) REFERENCES $TABLA_INSTALACION(id_instalacion),
-                FOREIGN KEY(id_tipo_equipo) REFERENCES $TABLA_TIPO_EQUIPO(id_tipo_equipo),
-                UNIQUE(id_instalacion, tag)
-            )
-        """
-
-        private const val SQL_CREAR_ESTADO_PROTOCOLO = """
-            CREATE TABLE $TABLA_ESTADO_PROTOCOLO (
-                id_estado INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL,
-                nombre TEXT NOT NULL
-            )
-        """
-
-        private const val SQL_CREAR_PROTOCOLO = """
-            CREATE TABLE $TABLA_PROTOCOLO (
-                id_protocolo INTEGER PRIMARY KEY AUTOINCREMENT,
-                numero TEXT UNIQUE NOT NULL,
-                id_equipo INTEGER NOT NULL,
-                id_usuario_registra INTEGER NOT NULL,
-                fecha_hora_prueba TEXT NOT NULL,
-                temperatura_c REAL NOT NULL,
-                humedad_pct REAL NOT NULL,
-                observaciones TEXT,
-                id_estado INTEGER NOT NULL,
-                id_protocolo_reemplazado INTEGER,
-                FOREIGN KEY(id_equipo) REFERENCES $TABLA_EQUIPO(id_equipo),
-                FOREIGN KEY(id_usuario_registra) REFERENCES $TABLA_USUARIO(id_usuario),
-                FOREIGN KEY(id_estado) REFERENCES $TABLA_ESTADO_PROTOCOLO(id_estado),
-                FOREIGN KEY(id_protocolo_reemplazado) REFERENCES $TABLA_PROTOCOLO(id_protocolo)
-            )
-        """
-
-        private const val SQL_CREAR_TIPO_PRUEBA = """
-            CREATE TABLE $TABLA_TIPO_PRUEBA (
-                id_tipo_prueba INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL
-            )
-        """
-
-        private const val SQL_CREAR_PARAMETRO = """
-            CREATE TABLE $TABLA_PARAMETRO (
-                id_parametro INTEGER PRIMARY KEY AUTOINCREMENT,
-                id_tipo_prueba INTEGER NOT NULL,
-                codigo TEXT NOT NULL,
-                nombre TEXT NOT NULL,
-                unidad TEXT NOT NULL,
-                FOREIGN KEY(id_tipo_prueba) REFERENCES $TABLA_TIPO_PRUEBA(id_tipo_prueba)
-            )
-        """
-
-        private const val SQL_CREAR_PRUEBA = """
-            CREATE TABLE $TABLA_PRUEBA (
-                id_prueba INTEGER PRIMARY KEY AUTOINCREMENT,
-                id_protocolo INTEGER NOT NULL,
-                id_tipo_prueba INTEGER NOT NULL,
-                elemento TEXT,
-                momento TEXT NOT NULL,
-                realizada INTEGER NOT NULL,
-                motivo_no_realizada TEXT,
-                id_resultado INTEGER,
-                FOREIGN KEY(id_protocolo) REFERENCES $TABLA_PROTOCOLO(id_protocolo),
-                FOREIGN KEY(id_tipo_prueba) REFERENCES $TABLA_TIPO_PRUEBA(id_tipo_prueba)
-            )
-        """
-
-        private const val SQL_CREAR_MEDICION = """
-            CREATE TABLE $TABLA_MEDICION (
-                id_medicion INTEGER PRIMARY KEY AUTOINCREMENT,
-                id_prueba INTEGER NOT NULL,
-                id_parametro INTEGER NOT NULL,
-                valor REAL NOT NULL,
-                FOREIGN KEY(id_prueba) REFERENCES $TABLA_PRUEBA(id_prueba),
-                FOREIGN KEY(id_parametro) REFERENCES $TABLA_PARAMETRO(id_parametro),
-                UNIQUE(id_prueba, id_parametro)
-            )
-        """
-    }
-
-    override fun onConfigure(db: SQLiteDatabase) {
-        super.onConfigure(db)
-        db.setForeignKeyConstraintsEnabled(true)
-    }
-
-    override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL(SQL_CREAR_ROL)
-        db.execSQL(SQL_CREAR_PERMISO)
-        db.execSQL(SQL_CREAR_ROL_PERMISO)
-        db.execSQL(SQL_CREAR_USUARIO)
-        db.execSQL(SQL_CREAR_REGION)
-        db.execSQL(SQL_CREAR_COMUNA)
-        db.execSQL(SQL_CREAR_INSTALACION)
-        db.execSQL(SQL_CREAR_TIPO_EQUIPO)
-        db.execSQL(SQL_CREAR_EQUIPO)
-        db.execSQL(SQL_CREAR_ESTADO_PROTOCOLO)
-        db.execSQL(SQL_CREAR_PROTOCOLO)
-        db.execSQL(SQL_CREAR_TIPO_PRUEBA)
-        db.execSQL(SQL_CREAR_PARAMETRO)
-        db.execSQL(SQL_CREAR_PRUEBA)
-        db.execSQL(SQL_CREAR_MEDICION)
-
-        // 1. Datos Semilla: Roles y Permisos
-        db.execSQL("INSERT INTO $TABLA_ROL (codigo, nombre) VALUES ('TECNICO', 'Técnico / Ingenieria'), ('CLIENTE', 'Usuario Cliente')")
-        db.execSQL("INSERT INTO $TABLA_PERMISO (codigo, descripcion) VALUES ('LEER', 'Consultar datos e historiales'), ('CREACION', 'Registrar instalaciones, equipos y pruebas'), ('EDICION', 'Modificar borradores'), ('FORMALIZACION', 'Formalizar protocolos'), ('ELIMINACION', 'Anular registros'), ('AGREGAR_PERSONAL', 'Agregar una cuenta de tecnico/ingeniero')")
-
-        db.execSQL("INSERT INTO $TABLA_ROL_PERMISO (id_rol, id_permiso) SELECT 1, id_permiso FROM $TABLA_PERMISO")
-        db.execSQL("INSERT INTO $TABLA_ROL_PERMISO (id_rol, id_permiso) SELECT 2, id_permiso FROM $TABLA_PERMISO WHERE codigo = 'LEER'")
-
-        // 2. Datos Semilla: Estados de Protocolo
-        db.execSQL("INSERT INTO $TABLA_ESTADO_PROTOCOLO (codigo, nombre) VALUES ('BORRADOR', 'Borrador'), ('REGISTRADO_TERRENO', 'Registrado en terreno'), ('OBSERVADO', 'Observado'), ('FORMALIZADO', 'Formalizado'), ('ANULADO', 'Anulado')")
-
-        // 3. Datos Semilla: Tipos de Equipo (Anexo 9)
-        db.execSQL("INSERT INTO $TABLA_TIPO_EQUIPO (nombre, clasificacion) VALUES ('Transformador', 'Primario'), ('Celda MT', 'Secundario'), ('Interruptor', 'Primario'), ('Relé de protección', 'Secundario'), ('Cable de poder', 'Primario')")
-
-        // 4. Datos Semilla: Regiones y Comunas de ejemplo
-        db.execSQL("INSERT INTO $TABLA_REGION (nombre) VALUES ('Región Metropolitana')")
-        db.execSQL("INSERT INTO $TABLA_COMUNA (id_region, nombre) VALUES (1, 'Lampa'), (1, 'San Bernardo'), (1, 'Til Til'), (1, 'La Florida'), (1, 'Puente Alto'), (1, 'Huechuraba')")
-
-        // 5. Datos Semilla: Usuario Técnico de ejemplo (Password: "123456" con SHA-256)
-        val hashPrueba = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"
-        db.execSQL("INSERT INTO $TABLA_USUARIO (id_rol, rut, nombre, correo, telefono, password_hash, activo) VALUES (1, '17.284.519-3', 'Matías Godoy Herrera', 'tecnico@induztek.cl', '56900000101', '$hashPrueba', 1)")
-
-        // 6. Datos Semilla: Cliente e Instalación (Anexo 9)
-        db.execSQL("INSERT INTO $TABLA_USUARIO (id_rol, rut, nombre, correo, telefono, password_hash, activo, giro, contacto_nombre, contacto_cargo) VALUES (2, '76.482.915-8', 'Envasadora del Pacífico S.A.', 'cliente@ejemplo.cl', '56900000101', '$hashPrueba', 1, 'Agroindustria', 'Marcela Fuentes Rojas', 'Jefe de Planta')")
-        db.execSQL("INSERT INTO $TABLA_INSTALACION (id_usuario_cliente, nombre, ubicacion, id_comuna, observaciones_acceso) VALUES (2, 'Planta Lampa', 'Sector industrial', 1, 'Inducción obligatoria de 30 min')")
-
-        // 7. Datos Semilla: Equipo de ejemplo (Transformador TR-01)
-        db.execSQL("INSERT INTO $TABLA_EQUIPO (id_instalacion, tag, id_tipo_equipo, marca, modelo, numero_serie, potencia_kva, tensiones, corriente) VALUES (1, 'TR-01', 1, 'Rhona', 'RH-18733', '2012', 1500.0, 12.0, 0.0)")
-
-        // 8. Datos Semilla: Tipos de Prueba y Parámetros (Para las validaciones de la HU-04 y HU-05)
-        db.execSQL("INSERT INTO $TABLA_TIPO_PRUEBA (nombre) VALUES ('Resistencia de Aislación')") // id_tipo_prueba = 1
-        db.execSQL("INSERT INTO $TABLA_PARAMETRO (id_tipo_prueba, codigo, nombre, unidad) VALUES (1, 'T_PRUEBA', 'Tensión de prueba', 'kV')")     // id_parametro = 1
-        db.execSQL("INSERT INTO $TABLA_PARAMETRO (id_tipo_prueba, codigo, nombre, unidad) VALUES (1, 'LEC_1MIN', 'Lectura a 1 min', 'MΩ')")       // id_parametro = 2
-        db.execSQL("INSERT INTO $TABLA_PARAMETRO (id_tipo_prueba, codigo, nombre, unidad) VALUES (1, 'LEC_10MIN', 'Lectura a 10 min', 'MΩ')")    // id_parametro = 3
-
-        // 9. Datos Semilla: Protocolo de ejemplo formalizado (Para que el cliente e ingeniero vean historial inicial - HU-02 / HU-03)
-        db.execSQL("INSERT INTO $TABLA_PROTOCOLO (numero, id_equipo, id_usuario_registra, fecha_hora_prueba, temperatura_c, humedad_pct, observaciones, id_estado) VALUES ('PT-2026-0401', 1, 1, '2026-04-10 10:30:00', 22.5, 55.0, 'Prueba inicial de transformador satisfactoria.', 4)") // id_estado 4 = Formalizado
-
-        // 10. Datos Semilla: Prueba y Mediciones asociadas al Protocolo de ejemplo (Cumple con RN-06 para cálculo de IP = 10980 / 6100 = 1.80 -> Observado)
-        db.execSQL("INSERT INTO $TABLA_PRUEBA (id_protocolo, id_tipo_prueba, elemento, momento, realizada, id_resultado) VALUES (1, 1, 'Devanado AT-BT', 'UNICA', 1, 2)") // id_resultado 2 = Observado
-        db.execSQL("INSERT INTO $TABLA_MEDICION (id_prueba, id_parametro, valor) VALUES (1, 1, 5.0)")  // 5.0 kV
-        db.execSQL("INSERT INTO $TABLA_MEDICION (id_prueba, id_parametro, valor) VALUES (1, 2, 6100.0)") // 6100 MΩ (Lectura 1 min)
-        db.execSQL("INSERT INTO $TABLA_MEDICION (id_prueba, id_parametro, valor) VALUES (1, 3, 10980.0)") // 10980 MΩ (Lectura 10 min)
-    }
-
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // En desarrollo académico se puede realizar re-creación o control incremental de versiones.
-    }
-
-    // ==========================================
-    // MÉTODOS ÚTILES PARA CONSULTAS (HU-01 a HU-03)
-    // ==========================================
-
-    fun buscarUsuarioPorCorreo(correo: String): Cursor {
         return readableDatabase.rawQuery(
-            "SELECT * FROM $TABLA_USUARIO WHERE correo = ?",
-            arrayOf(correo)
-        )
+            consulta,
+            arrayOf("CLIENTE")
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        ClienteProtocolo(
+                            idUsuario = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_usuario")
+                            ),
+                            rut = cursor.getString(
+                                cursor.getColumnIndexOrThrow("rut")
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre")
+                            ),
+                            correo = cursor.getString(
+                                cursor.getColumnIndexOrThrow("correo")
+                            )
+                        )
+                    )
+                }
+            }
+        }
     }
 
-    fun actualizarAvatarUsuario(idUsuario: Long, avatarUri: String): Int {
-        val valores = ContentValues().apply {
-            put("avatar_uri", avatarUri)
+    /**
+     * Obtiene las instalaciones asociadas a un cliente.
+     */
+    fun obtenerInstalacionesPorCliente(
+        idUsuarioCliente: Long
+    ): List<Instalacion> {
+        val consulta = """
+            SELECT
+                i.id_instalacion,
+                i.id_usuario_cliente,
+                i.nombre,
+                i.ubicacion,
+                i.id_comuna,
+                c.nombre AS nombre_comuna,
+                i.observaciones_acceso
+            FROM $TABLA_INSTALACION i
+            INNER JOIN $TABLA_COMUNA c
+                ON c.id_comuna = i.id_comuna
+            WHERE i.id_usuario_cliente = ?
+            ORDER BY i.nombre COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            arrayOf(idUsuarioCliente.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    val indiceUbicacion =
+                        cursor.getColumnIndexOrThrow("ubicacion")
+
+                    val indiceObservaciones =
+                        cursor.getColumnIndexOrThrow(
+                            "observaciones_acceso"
+                        )
+
+                    add(
+                        Instalacion(
+                            idInstalacion = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_instalacion"
+                                )
+                            ),
+                            idUsuarioCliente = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_usuario_cliente"
+                                )
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre")
+                            ),
+                            ubicacion = if (
+                                cursor.isNull(indiceUbicacion)
+                            ) {
+                                null
+                            } else {
+                                cursor.getString(indiceUbicacion)
+                            },
+                            idComuna = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_comuna")
+                            ),
+                            nombreComuna = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "nombre_comuna"
+                                )
+                            ),
+                            observacionesAcceso =
+                                if (cursor.isNull(indiceObservaciones)) {
+                                    null
+                                } else {
+                                    cursor.getString(indiceObservaciones)
+                                }
+                        )
+                    )
+                }
+            }
         }
-        return writableDatabase.update(
-            TABLA_USUARIO,
-            valores,
-            "id_usuario = ?",
-            arrayOf(idUsuario.toString())
-        )
     }
 
-    fun actualizarPassword(correo: String, nuevoHash: String): Int {
-        val valores = ContentValues().apply {
-            put("password_hash", nuevoHash)
+    /**
+     * Obtiene los equipos pertenecientes a una instalación.
+     * Incluye el nombre y la clasificación del tipo de equipo.
+     */
+    fun obtenerEquiposPorInstalacion(
+        idInstalacion: Long
+    ): List<Equipo> {
+        val consulta = """
+            SELECT
+                e.id_equipo,
+                e.id_instalacion,
+                e.tag,
+                e.id_tipo_equipo,
+                te.nombre AS nombre_tipo_equipo,
+                te.clasificacion AS clasificacion_tipo,
+                e.marca,
+                e.modelo,
+                e.numero_serie,
+                e.potencia_kva,
+                e.tensiones,
+                e.corriente,
+                e.max_contactos_uohm
+            FROM $TABLA_EQUIPO e
+            INNER JOIN $TABLA_TIPO_EQUIPO te
+                ON te.id_tipo_equipo = e.id_tipo_equipo
+            WHERE e.id_instalacion = ?
+            ORDER BY e.tag COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            arrayOf(idInstalacion.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    fun leerDoubleOpcional(columna: String): Double? {
+                        val indice =
+                            cursor.getColumnIndexOrThrow(columna)
+
+                        return if (cursor.isNull(indice)) {
+                            null
+                        } else {
+                            cursor.getDouble(indice)
+                        }
+                    }
+
+                    fun leerTextoOpcional(columna: String): String? {
+                        val indice =
+                            cursor.getColumnIndexOrThrow(columna)
+
+                        return if (cursor.isNull(indice)) {
+                            null
+                        } else {
+                            cursor.getString(indice)
+                        }
+                    }
+
+                    add(
+                        Equipo(
+                            idEquipo = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_equipo")
+                            ),
+                            idInstalacion = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_instalacion"
+                                )
+                            ),
+                            tag = cursor.getString(
+                                cursor.getColumnIndexOrThrow("tag")
+                            ),
+                            idTipoEquipo = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_tipo_equipo"
+                                )
+                            ),
+                            nombreTipoEquipo = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "nombre_tipo_equipo"
+                                )
+                            ),
+                            clasificacionTipo = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "clasificacion_tipo"
+                                )
+                            ),
+                            marca = leerTextoOpcional("marca"),
+                            modelo = leerTextoOpcional("modelo"),
+                            numeroSerie = leerTextoOpcional("numero_serie"),
+                            potenciaKva = leerDoubleOpcional("potencia_kva"),
+                            tensiones = leerDoubleOpcional("tensiones"),
+                            corriente = leerDoubleOpcional("corriente"),
+                            maxContactosUohm =
+                                leerDoubleOpcional("max_contactos_uohm")
+                        )
+                    )
+                }
+            }
         }
-        return writableDatabase.update(
-            TABLA_USUARIO,
-            valores,
-            "correo = ?",
-            arrayOf(correo)
-        )
     }
+
+    /**
+     * Obtiene las comunas disponibles, indicando su región.
+     */
+    fun obtenerComunas(): List<Comuna> {
+        val consulta = """
+            SELECT
+                c.id_comuna,
+                c.id_region,
+                c.nombre AS nombre_comuna,
+                r.nombre AS nombre_region
+            FROM $TABLA_COMUNA c
+            INNER JOIN $TABLA_REGION r
+                ON r.id_region = c.id_region
+            ORDER BY r.nombre COLLATE NOCASE,
+                     c.nombre COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            null
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        Comuna(
+                            idComuna = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_comuna")
+                            ),
+                            idRegion = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_region")
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "nombre_comuna"
+                                )
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Obtiene el catálogo de tipos de equipo.
+     */
+    fun obtenerTiposEquipo(): List<TipoEquipo> {
+        val consulta = """
+            SELECT id_tipo_equipo, nombre, clasificacion
+            FROM $TABLA_TIPO_EQUIPO
+            ORDER BY nombre COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            null
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        TipoEquipo(
+                            idTipoEquipo = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_tipo_equipo"
+                                )
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre")
+                            ),
+                            clasificacion = cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                    "clasificacion"
+                                )
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Obtiene únicamente las pruebas compatibles con el tipo de equipo.
+     */
+    fun obtenerPruebasCompatibles(
+        idTipoEquipo: Long
+    ): List<TipoPrueba> {
+        val consulta = """
+            SELECT
+                tp.id_tipo_prueba,
+                tp.nombre
+            FROM $TABLA_TIPO_PRUEBA_EQUIPO c
+            INNER JOIN $TABLA_TIPO_PRUEBA tp
+                ON tp.id_tipo_prueba = c.id_tipo_prueba
+            WHERE c.id_tipo_equipo = ?
+            ORDER BY tp.nombre COLLATE NOCASE
+        """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            arrayOf(idTipoEquipo.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        TipoPrueba(
+                            idTipoPrueba = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                    "id_tipo_prueba"
+                                )
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre")
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+
+    // =========================================================
+    // HU-04: CREACIÓN DE INSTALACIONES Y EQUIPOS
+    // =========================================================
+
+    /**
+     * Comprueba si un TAG ya está registrado en una instalación.
+     * El mismo TAG puede existir en instalaciones diferentes.
+     */
+    fun existeTagEnInstalacion(
+        idInstalacion: Long,
+        tag: String
+    ): Boolean {
+        return readableDatabase.rawQuery(
+            """
+                SELECT 1
+                FROM $TABLA_EQUIPO
+                WHERE id_instalacion = ?
+                  AND UPPER(TRIM(tag)) = UPPER(TRIM(?))
+                LIMIT 1
+            """.trimIndent(),
+            arrayOf(idInstalacion.toString(), tag.trim())
+        ).use { cursor ->
+            cursor.moveToFirst()
+        }
+    }
+
+    /**
+     * Crea una instalación para el cliente seleccionado.
+     * Devuelve su ID si se inserta correctamente o -1 si falla.
+     */
+    fun insertarInstalacionProtocolo(
+        idUsuarioCliente: Long,
+        nombre: String,
+        ubicacion: String?,
+        idComuna: Long,
+        observacionesAcceso: String?
+    ): Long {
+        val valores = ContentValues().apply {
+            put("id_usuario_cliente", idUsuarioCliente)
+            put("nombre", nombre.trim())
+
+            if (ubicacion.isNullOrBlank()) {
+                putNull("ubicacion")
+            } else {
+                put("ubicacion", ubicacion.trim())
+            }
+
+            put("id_comuna", idComuna)
+
+            if (observacionesAcceso.isNullOrBlank()) {
+                putNull("observaciones_acceso")
+            } else {
+                put(
+                    "observaciones_acceso",
+                    observacionesAcceso.trim()
+                )
+            }
+        }
+
+        return try {
+            writableDatabase.insert(
+                TABLA_INSTALACION,
+                null,
+                valores
+            )
+        } catch (_: SQLiteConstraintException) {
+            -1L
+        }
+    }
+
+    /**
+     * Crea un equipo en la instalación seleccionada.
+     * El TAG debe ser único dentro de esa instalación.
+     *
+     * Los datos de placa pueden quedar nulos cuando no se
+     * hayan proporcionado.
+     */
+    fun insertarEquipoProtocolo(
+        idInstalacion: Long,
+        tag: String,
+        idTipoEquipo: Long,
+        marca: String?,
+        modelo: String?,
+        numeroSerie: String?,
+        potenciaKva: Double?,
+        tensiones: Double?,
+        corriente: Double?,
+        maxContactosUohm: Double?
+    ): Long {
+
+        val tagLimpio = tag.trim()
+
+        // Comprobación previa para poder mostrar un mensaje claro.
+        if (existeTagEnInstalacion(idInstalacion, tagLimpio)) {
+            return -1L
+        }
+
+        val valores = ContentValues().apply {
+            put("id_instalacion", idInstalacion)
+            put("tag", tagLimpio)
+            put("id_tipo_equipo", idTipoEquipo)
+
+            if (marca.isNullOrBlank()) {
+                putNull("marca")
+            } else {
+                put("marca", marca.trim())
+            }
+
+            if (modelo.isNullOrBlank()) {
+                putNull("modelo")
+            } else {
+                put("modelo", modelo.trim())
+            }
+
+            if (numeroSerie.isNullOrBlank()) {
+                putNull("numero_serie")
+            } else {
+                put("numero_serie", numeroSerie.trim())
+            }
+
+            if (potenciaKva == null) {
+                putNull("potencia_kva")
+            } else {
+                put("potencia_kva", potenciaKva)
+            }
+
+            if (tensiones == null) {
+                putNull("tensiones")
+            } else {
+                put("tensiones", tensiones)
+            }
+
+            if (corriente == null) {
+                putNull("corriente")
+            } else {
+                put("corriente", corriente)
+            }
+
+            if (maxContactosUohm == null) {
+                putNull("max_contactos_uohm")
+            } else {
+                put("max_contactos_uohm", maxContactosUohm)
+            }
+        }
+
+        return try {
+            writableDatabase.insert(
+                TABLA_EQUIPO,
+                null,
+                valores
+            )
+        } catch (_: SQLiteConstraintException) {
+            // La restricción UNIQUE también protege ante
+            // un TAG duplicado entre la comprobación y el INSERT.
+            -1L
+        }
+    }
+
+    /**
+     * Obtiene las regiones disponibles en SQLite.
+     */
+    fun obtenerRegiones(): List<Region> {
+        val consulta = """
+        SELECT id_region, nombre
+        FROM $TABLA_REGION
+        ORDER BY nombre COLLATE NOCASE
+    """.trimIndent()
+
+        return readableDatabase.rawQuery(
+            consulta,
+            null
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        Region(
+                            idRegion = cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id_region")
+                            ),
+                            nombre = cursor.getString(
+                                cursor.getColumnIndexOrThrow("nombre")
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Registra un protocolo con su prueba y mediciones.
+     *
+     * Las tres operaciones se ejecutan en una transacción.
+     * Si una falla, SQLite revierte el registro completo.
+     *
+     * Devuelve el número del protocolo si todo resulta bien.
+     */
+    fun registrarProtocolo(
+        idEquipo: Long,
+        idUsuarioRegistra: Long,
+        idTipoPrueba: Long,
+        fechaHora: String,
+        temperaturaC: Double,
+        humedadPct: Double,
+        mediciones: Map<String, Double>,
+        elemento: String? = null
+    ): String {
+        val db = writableDatabase
+
+        db.beginTransaction()
+
+        try {
+            // 1. Obtener el ID del estado inicial.
+            val idEstado = db.rawQuery(
+                """
+                SELECT id_estado
+                FROM $TABLA_ESTADO_PROTOCOLO
+                WHERE codigo = ?
+            """.trimIndent(),
+                arrayOf("REGISTRADO_TERRENO")
+            ).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    cursor.getLong(0)
+                } else {
+                    throw IllegalStateException(
+                        "No existe el estado Registrado en terreno."
+                    )
+                }
+            }
+
+            // 2. Generar un número único para el año actual.
+            val anio = fechaHora.take(4)
+            val prefijo = "PT-$anio-"
+
+            val siguienteNumero = db.rawQuery(
+                """
+                SELECT COALESCE(
+                    MAX(CAST(SUBSTR(numero, 9) AS INTEGER)),
+                    0
+                ) + 1
+                FROM $TABLA_PROTOCOLO
+                WHERE numero LIKE ?
+            """.trimIndent(),
+                arrayOf("$prefijo%")
+            ).use { cursor ->
+                cursor.moveToFirst()
+                cursor.getInt(0)
+            }
+
+            val numeroProtocolo = "$prefijo${siguienteNumero.toString().padStart(4, '0')}"
+
+            // 3. Insertar la cabecera del protocolo.
+            val valoresProtocolo = ContentValues().apply {
+                put("numero", numeroProtocolo)
+                put("id_equipo", idEquipo)
+                put("id_usuario_registra", idUsuarioRegistra)
+                put("fecha_hora_prueba", fechaHora)
+                put("temperatura_c", temperaturaC)
+                put("humedad_pct", humedadPct)
+                putNull("observaciones")
+                put("id_estado", idEstado)
+            }
+
+            val idProtocolo = db.insertOrThrow(
+                TABLA_PROTOCOLO,
+                null,
+                valoresProtocolo
+            )
+
+            // 4. Insertar la prueba asociada al protocolo.
+            val valoresPrueba = ContentValues().apply {
+                put("id_protocolo", idProtocolo)
+                put("id_tipo_prueba", idTipoPrueba)
+
+                if (elemento.isNullOrBlank()) {
+                    putNull("elemento")
+                } else {
+                    put("elemento", elemento.trim())
+                }
+
+                put("momento", "UNICA")
+                put("realizada", 1)
+                putNull("motivo_no_realizada")
+                putNull("id_resultado")
+            }
+
+            val idPrueba = db.insertOrThrow(
+                TABLA_PRUEBA,
+                null,
+                valoresPrueba
+            )
+
+            // 5. Buscar cada parámetro por su código e insertar
+            //    la medición correspondiente.
+            for ((codigo, valor) in mediciones) {
+                val idParametro = db.rawQuery(
+                    """
+                    SELECT id_parametro
+                    FROM $TABLA_PARAMETRO
+                    WHERE id_tipo_prueba = ?
+                      AND codigo = ?
+                """.trimIndent(),
+                    arrayOf(
+                        idTipoPrueba.toString(),
+                        codigo
+                    )
+                ).use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        cursor.getLong(0)
+                    } else {
+                        throw IllegalArgumentException(
+                            "No existe el parámetro '$codigo' " +
+                                    "para la prueba seleccionada."
+                        )
+                    }
+                }
+
+                val valoresMedicion = ContentValues().apply {
+                    put("id_prueba", idPrueba)
+                    put("id_parametro", idParametro)
+                    put("valor", valor)
+                }
+
+                db.insertOrThrow(
+                    TABLA_MEDICION,
+                    null,
+                    valoresMedicion
+                )
+            }
+
+            // 6. Confirmar la transacción solo si todo se guardó.
+            db.setTransactionSuccessful()
+
+            return numeroProtocolo
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+
+    fun obtenerParametrosPorTipoPrueba(
+        idTipoPrueba: Long
+    ): List<ParametroPrueba> {
+
+        val lista = mutableListOf<ParametroPrueba>()
+        val db = readableDatabase
+
+        val cursor = db.rawQuery(
+            """
+        SELECT id_parametro, id_tipo_prueba, codigo, nombre, unidad
+        FROM parametro
+        WHERE id_tipo_prueba = ?
+        ORDER BY id_parametro
+        """.trimIndent(),
+            arrayOf(idTipoPrueba.toString())
+        )
+
+        cursor.use {
+            while (it.moveToNext()) {
+                lista.add(
+                    ParametroPrueba(
+                        idParametro = it.getLong(0),
+                        idTipoPrueba = it.getLong(1),
+                        codigo = it.getString(2),
+                        nombre = it.getString(3),
+                        unidad = it.getString(4)
+                    )
+                )
+            }
+        }
+
+        return lista
+    }
+
+
+
+
+    fun guardarCabeceraBorrador(
+        idProtocoloExistente: Long?,
+        idEquipo: Long,
+        idUsuarioRegistra: Long,
+        fechaHora: String,
+        temperaturaC: Double,
+        humedadPct: Double
+    ): Long {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val idEstadoBorrador = db.rawQuery(
+                "SELECT id_estado FROM $TABLA_ESTADO_PROTOCOLO WHERE codigo = ?",
+                arrayOf("BORRADOR")
+            ).use { c ->
+                if (c.moveToFirst()) c.getLong(0)
+                else throw IllegalStateException("No existe el estado BORRADOR.")
+            }
+            if (idProtocoloExistente != null && idProtocoloExistente > 0L) {
+                val cv = ContentValues().apply {
+                    put("temperatura_c", temperaturaC)
+                    put("humedad_pct", humedadPct)
+                    put("id_estado", idEstadoBorrador)
+                }
+                val filas = db.update(
+                    TABLA_PROTOCOLO, cv,
+                    "id_protocolo = ? AND id_usuario_registra = ?",
+                    arrayOf(idProtocoloExistente.toString(), idUsuarioRegistra.toString())
+                )
+                if (filas == 0) throw IllegalArgumentException("No se encontró el borrador.")
+                db.setTransactionSuccessful()
+                return idProtocoloExistente
+            }
+            val anio = fechaHora.take(4)
+            val prefijo = "PT-$anio-"
+            val siguiente = db.rawQuery(
+                "SELECT COALESCE(MAX(CAST(SUBSTR(numero, 9) AS INTEGER)), 0) + 1 FROM $TABLA_PROTOCOLO WHERE numero LIKE ?",
+                arrayOf("$prefijo%")
+            ).use { c -> c.moveToFirst(); c.getInt(0) }
+            val numero = "$prefijo${siguiente.toString().padStart(4, '0')}"
+            val cv = ContentValues().apply {
+                put("numero", numero)
+                put("id_equipo", idEquipo)
+                put("id_usuario_registra", idUsuarioRegistra)
+                put("fecha_hora_prueba", fechaHora)
+                put("temperatura_c", temperaturaC)
+                put("humedad_pct", humedadPct)
+                putNull("observaciones")
+                put("id_estado", idEstadoBorrador)
+            }
+            val id = db.insertOrThrow(TABLA_PROTOCOLO, null, cv)
+            db.setTransactionSuccessful()
+            return id
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun obtenerBorradoresProtocolo(idUsuario: Long): List<com.example.induzteckapp.model.ProtocoloBorrador> {
+        val consulta = """
+            SELECT p.id_protocolo, p.numero, e.tag, te.nombre, p.fecha_hora_prueba,
+                   p.temperatura_c, p.humedad_pct
+            FROM $TABLA_PROTOCOLO p
+            INNER JOIN $TABLA_ESTADO_PROTOCOLO ep ON ep.id_estado = p.id_estado
+            INNER JOIN $TABLA_EQUIPO e ON e.id_equipo = p.id_equipo
+            INNER JOIN $TABLA_TIPO_EQUIPO te ON te.id_tipo_equipo = e.id_tipo_equipo
+            WHERE p.id_usuario_registra = ? AND ep.codigo = 'BORRADOR'
+            ORDER BY p.fecha_hora_prueba DESC
+        """.trimIndent()
+        return readableDatabase.rawQuery(consulta, arrayOf(idUsuario.toString())).use { c ->
+            buildList {
+                while (c.moveToNext()) add(
+                    com.example.induzteckapp.model.ProtocoloBorrador(
+                        idProtocolo = c.getLong(0),
+                        numero = c.getString(1),
+                        tagEquipo = c.getString(2),
+                        tipoEquipo = c.getString(3),
+                        fechaHora = c.getString(4),
+                        temperaturaC = c.getDouble(5),
+                        humedadPct = c.getDouble(6)
+                    )
+                )
+            }
+        }
+    }
+
+    fun guardarPruebaEvaluada(
+        idProtocolo: Long,
+        idTipoPrueba: Long,
+        elemento: String?,
+        mediciones: Map<String, Double>,
+        idResultado: Int
+    ): Long {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val pendienteId = db.rawQuery(
+                """
+                SELECT id_prueba FROM $TABLA_PRUEBA
+                WHERE id_protocolo = ? AND id_tipo_prueba = ?
+                  AND realizada = 0 AND elemento IS NULL
+                ORDER BY id_prueba LIMIT 1
+                """.trimIndent(),
+                arrayOf(idProtocolo.toString(), idTipoPrueba.toString())
+            ).use { c -> if (c.moveToFirst()) c.getLong(0) else null }
+            val cvPrueba = ContentValues().apply {
+                put("id_protocolo", idProtocolo)
+                put("id_tipo_prueba", idTipoPrueba)
+                if (elemento.isNullOrBlank()) putNull("elemento") else put("elemento", elemento.trim())
+                put("momento", "UNICA")
+                put("realizada", 1)
+                putNull("motivo_no_realizada")
+                put("id_resultado", idResultado)
+            }
+            val idPrueba = if (pendienteId != null) {
+                db.update(TABLA_PRUEBA, cvPrueba, "id_prueba = ?", arrayOf(pendienteId.toString()))
+                pendienteId
+            } else {
+                db.insertOrThrow(TABLA_PRUEBA, null, cvPrueba)
+            }
+            for ((codigo, valor) in mediciones) {
+                val idParametro = db.rawQuery(
+                    "SELECT id_parametro FROM $TABLA_PARAMETRO WHERE id_tipo_prueba = ? AND codigo = ?",
+                    arrayOf(idTipoPrueba.toString(), codigo)
+                ).use { c ->
+                    if (c.moveToFirst()) c.getLong(0)
+                    else throw IllegalArgumentException("No existe el parámetro $codigo para esta prueba.")
+                }
+                val cv = ContentValues().apply {
+                    put("id_prueba", idPrueba)
+                    put("id_parametro", idParametro)
+                    put("valor", valor)
+                }
+                db.insertOrThrow(TABLA_MEDICION, null, cv)
+            }
+            db.setTransactionSuccessful()
+            return idPrueba
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun finalizarBorradorProtocolo(idProtocolo: Long) {
+        val db = writableDatabase
+        val idEstado = db.rawQuery(
+            "SELECT id_estado FROM $TABLA_ESTADO_PROTOCOLO WHERE codigo = ?",
+            arrayOf("REGISTRADO_TERRENO")
+        ).use { c ->
+            if (c.moveToFirst()) c.getLong(0)
+            else throw IllegalStateException("No existe el estado REGISTRADO_TERRENO.")
+        }
+        val cv = ContentValues().apply { put("id_estado", idEstado) }
+        if (db.update(TABLA_PROTOCOLO, cv, "id_protocolo = ?", arrayOf(idProtocolo.toString())) == 0) {
+            throw IllegalArgumentException("No se encontró el protocolo borrador.")
+        }
+    }
+
+    fun contarPruebasRegistradas(idProtocolo: Long): Int {
+        return readableDatabase.rawQuery(
+            "SELECT COUNT(*) FROM $TABLA_PRUEBA WHERE id_protocolo = ? AND realizada = 1",
+            arrayOf(idProtocolo.toString())
+        ).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+    }
+
+
+    fun obtenerDetalleBorrador(idProtocolo: Long, idUsuarioRegistra: Long): com.example.induzteckapp.model.BorradorProtocoloDetalle? {
+        val consulta = """
+            SELECT p.id_protocolo, i.id_usuario_cliente, i.id_instalacion, e.id_equipo,
+                   p.temperatura_c, p.humedad_pct
+            FROM $TABLA_PROTOCOLO p
+            INNER JOIN $TABLA_EQUIPO e ON e.id_equipo = p.id_equipo
+            INNER JOIN $TABLA_INSTALACION i ON i.id_instalacion = e.id_instalacion
+            INNER JOIN $TABLA_ESTADO_PROTOCOLO ep ON ep.id_estado = p.id_estado
+            WHERE p.id_protocolo = ? AND p.id_usuario_registra = ? AND ep.codigo = 'BORRADOR'
+        """.trimIndent()
+        return readableDatabase.rawQuery(
+            consulta, arrayOf(idProtocolo.toString(), idUsuarioRegistra.toString())
+        ).use { c ->
+            if (!c.moveToFirst()) null else com.example.induzteckapp.model.BorradorProtocoloDetalle(
+                idProtocolo = c.getLong(0),
+                idUsuarioCliente = c.getLong(1),
+                idInstalacion = c.getLong(2),
+                idEquipo = c.getLong(3),
+                temperaturaC = c.getDouble(4),
+                humedadPct = c.getDouble(5)
+            )
+        }
+    }
+
+    fun obtenerTiposPruebaCompletados(idProtocolo: Long): Set<Long> {
+        return readableDatabase.rawQuery(
+            "SELECT DISTINCT id_tipo_prueba FROM $TABLA_PRUEBA WHERE id_protocolo = ? AND realizada = 1",
+            arrayOf(idProtocolo.toString())
+        ).use { c ->
+            buildSet { while (c.moveToNext()) add(c.getLong(0)) }
+        }
+    }
+
+
+    fun obtenerElementosPruebaCompletados(idProtocolo: Long, idTipoPrueba: Long): Set<String> {
+        return readableDatabase.rawQuery(
+            """
+            SELECT elemento FROM $TABLA_PRUEBA
+            WHERE id_protocolo = ? AND id_tipo_prueba = ? AND realizada = 1
+              AND elemento IS NOT NULL
+            """.trimIndent(),
+            arrayOf(idProtocolo.toString(), idTipoPrueba.toString())
+        ).use { c ->
+            buildSet { while (c.moveToNext()) add(c.getString(0).trim().lowercase(Locale.ROOT)) }
+        }
+    }
+
+
+    fun obtenerResultadoGlobalProtocolo(idProtocolo: Long): Int? {
+        return readableDatabase.rawQuery(
+            """
+            SELECT MAX(pr.id_resultado)
+            FROM $TABLA_PRUEBA pr
+            WHERE pr.id_protocolo = ? AND pr.realizada = 1
+            """.trimIndent(),
+            arrayOf(idProtocolo.toString())
+        ).use { c ->
+            if (c.moveToFirst() && !c.isNull(0)) c.getInt(0) else null
+        }
+    }
+
+
+    fun guardarPruebasSeleccionadasBorrador(idProtocolo: Long, idsTiposPrueba: List<Long>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            idsTiposPrueba.distinct().forEach { idTipo ->
+                val existe = db.rawQuery(
+                    "SELECT 1 FROM $TABLA_PRUEBA WHERE id_protocolo = ? AND id_tipo_prueba = ? LIMIT 1",
+                    arrayOf(idProtocolo.toString(), idTipo.toString())
+                ).use { it.moveToFirst() }
+                if (!existe) {
+                    val cv = ContentValues().apply {
+                        put("id_protocolo", idProtocolo)
+                        put("id_tipo_prueba", idTipo)
+                        putNull("elemento")
+                        put("momento", "UNICA")
+                        put("realizada", 0)
+                        put("motivo_no_realizada", "PENDIENTE")
+                        putNull("id_resultado")
+                    }
+                    db.insertOrThrow(TABLA_PRUEBA, null, cv)
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun obtenerTiposPruebaSeleccionadosBorrador(idProtocolo: Long): Set<Long> {
+        return readableDatabase.rawQuery(
+            "SELECT DISTINCT id_tipo_prueba FROM $TABLA_PRUEBA WHERE id_protocolo = ?",
+            arrayOf(idProtocolo.toString())
+        ).use { c ->
+            buildSet { while (c.moveToNext()) add(c.getLong(0)) }
+        }
+    }
+
+
+    fun obtenerHistorialProtocolos(): List<ProtocoloHistorial> {
+        val db = readableDatabase
+        val protocolos = mutableListOf<ProtocoloHistorial>()
+        val cursor = db.rawQuery(
+            """
+            SELECT p.id_protocolo, p.numero, COALESCE(c.nombre, 'Cliente no disponible'),
+                   i.nombre, COALESCE(i.ubicacion, ''), e.tag, te.nombre,
+                   COALESCE(e.marca, ''), COALESCE(e.modelo, ''),
+                   COALESCE(u.nombre, 'Usuario no disponible'), p.fecha_hora_prueba,
+                   p.temperatura_c, p.humedad_pct, ep.codigo, ep.nombre,
+                   COALESCE(p.observaciones, '')
+            FROM $TABLA_PROTOCOLO p
+            INNER JOIN $TABLA_EQUIPO e ON e.id_equipo = p.id_equipo
+            INNER JOIN $TABLA_TIPO_EQUIPO te ON te.id_tipo_equipo = e.id_tipo_equipo
+            INNER JOIN $TABLA_INSTALACION i ON i.id_instalacion = e.id_instalacion
+            LEFT JOIN $TABLA_USUARIO c ON c.id_usuario = i.id_usuario_cliente
+            LEFT JOIN $TABLA_USUARIO u ON u.id_usuario = p.id_usuario_registra
+            INNER JOIN $TABLA_ESTADO_PROTOCOLO ep ON ep.id_estado = p.id_estado
+            ORDER BY p.fecha_hora_prueba DESC, p.id_protocolo DESC
+            """.trimIndent(), null
+        )
+        cursor.use {
+            while (it.moveToNext()) {
+                val id = it.getLong(0)
+                val pruebas = obtenerPruebasHistorial(id)
+                protocolos.add(
+                    ProtocoloHistorial(
+                        idProtocolo = id,
+                        numero = it.getString(1), cliente = it.getString(2),
+                        instalacion = it.getString(3), ubicacion = it.getString(4),
+                        tagEquipo = it.getString(5), tipoEquipo = it.getString(6),
+                        marca = it.getString(7), modelo = it.getString(8),
+                        tecnico = it.getString(9), fechaHora = it.getString(10),
+                        temperaturaC = it.getDouble(11), humedadPct = it.getDouble(12),
+                        estadoCodigo = it.getString(13), estadoNombre = it.getString(14),
+                        observaciones = it.getString(15), pruebas = pruebas
+                    )
+                )
+            }
+        }
+        return protocolos
+    }
+
+    private fun obtenerPruebasHistorial(idProtocolo: Long): List<PruebaHistorial> {
+        val db = readableDatabase
+        val lista = mutableListOf<PruebaHistorial>()
+        db.rawQuery(
+            """SELECT pr.id_prueba, tp.nombre, COALESCE(pr.elemento, ''), pr.realizada, pr.id_resultado
+               FROM $TABLA_PRUEBA pr
+               INNER JOIN $TABLA_TIPO_PRUEBA tp ON tp.id_tipo_prueba = pr.id_tipo_prueba
+               WHERE pr.id_protocolo = ? ORDER BY pr.id_prueba""".trimIndent(),
+            arrayOf(idProtocolo.toString())
+        ).use { c ->
+            while (c.moveToNext()) {
+                val idPrueba = c.getLong(0)
+                val mediciones = mutableListOf<MedicionHistorial>()
+                db.rawQuery(
+                    """SELECT pa.nombre, me.valor, pa.unidad
+                       FROM $TABLA_MEDICION me
+                       INNER JOIN $TABLA_PARAMETRO pa ON pa.id_parametro = me.id_parametro
+                       WHERE me.id_prueba = ? ORDER BY pa.id_parametro""".trimIndent(),
+                    arrayOf(idPrueba.toString())
+                ).use { m ->
+                    while (m.moveToNext()) mediciones.add(
+                        MedicionHistorial(m.getString(0), m.getDouble(1), m.getString(2))
+                    )
+                }
+                lista.add(
+                    PruebaHistorial(
+                        idPrueba = idPrueba, nombre = c.getString(1), elemento = c.getString(2),
+                        realizada = c.getInt(3) == 1,
+                        idResultado = if (c.isNull(4)) null else c.getInt(4),
+                        mediciones = mediciones
+                    )
+                )
+            }
+        }
+        return lista
+    }
+
+
+    fun obtenerResumenPruebasProtocolo(idProtocolo: Long): List<String> {
+        return readableDatabase.rawQuery(
+            """SELECT tp.nombre, COALESCE(pr.elemento, ''), pr.realizada, pr.id_resultado
+               FROM $TABLA_PRUEBA pr
+               INNER JOIN $TABLA_TIPO_PRUEBA tp ON tp.id_tipo_prueba = pr.id_tipo_prueba
+               WHERE pr.id_protocolo = ? ORDER BY pr.id_prueba""".trimIndent(),
+            arrayOf(idProtocolo.toString())
+        ).use { c ->
+            buildList {
+                while (c.moveToNext()) {
+                    val resultado = if (c.getInt(2) != 1 || c.isNull(3)) "Pendiente" else when (c.getInt(3)) {
+                        RESULTADO_APROBADO -> "Aprobado"
+                        RESULTADO_OBSERVADO -> "Observado"
+                        else -> "Rechazado"
+                    }
+                    val elemento = c.getString(1).takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()
+                    add("${c.getString(0)}$elemento: $resultado")
+                }
+            }
+        }
+    }
+
+    fun cambiarEstadoProtocolo(
+        idProtocolo: Long,
+        nuevoEstado: String,
+        idUsuario: Long,
+        motivo: String = ""
+    ) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val datos = db.rawQuery(
+                """SELECT ep.codigo, r.codigo, p.temperatura_c, p.humedad_pct
+                   FROM $TABLA_PROTOCOLO p
+                   INNER JOIN $TABLA_ESTADO_PROTOCOLO ep ON ep.id_estado = p.id_estado
+                   INNER JOIN $TABLA_USUARIO u ON u.id_usuario = ?
+                   INNER JOIN $TABLA_ROL r ON r.id_rol = u.id_rol
+                   WHERE p.id_protocolo = ?""".trimIndent(),
+                arrayOf(idUsuario.toString(), idProtocolo.toString())
+            ).use { c ->
+                if (!c.moveToFirst()) throw IllegalArgumentException("No se encontró el protocolo o la sesión.")
+                arrayOf(c.getString(0), c.getString(1), c.getDouble(2).toString(), c.getDouble(3).toString())
+            }
+            val actual = datos[0]
+            val rol = datos[1]
+            if (actual == nuevoEstado) throw IllegalStateException("El protocolo ya se encuentra en ese estado.")
+            if (rol != "TECNICO") throw SecurityException("Solo un técnico o ingeniero puede cambiar el estado del protocolo.")
+            val permitida = when (nuevoEstado) {
+                "REGISTRADO_TERRENO" -> actual == "BORRADOR" || actual == "OBSERVADO"
+                "FORMALIZADO" -> actual == "REGISTRADO_TERRENO"
+                "OBSERVADO" -> actual == "REGISTRADO_TERRENO"
+                "ANULADO" -> actual != "FORMALIZADO"
+                else -> false
+            }
+            if (!permitida) throw IllegalStateException("No se permite cambiar el estado de $actual a $nuevoEstado.")
+            if ((nuevoEstado == "OBSERVADO" || nuevoEstado == "ANULADO") && motivo.isBlank()) {
+                throw IllegalArgumentException("Debes ingresar un motivo para este cambio de estado.")
+            }
+            if (nuevoEstado == "REGISTRADO_TERRENO") {
+                val realizadas = db.rawQuery(
+                    "SELECT COUNT(*) FROM $TABLA_PRUEBA WHERE id_protocolo = ? AND realizada = 1 AND id_resultado IS NOT NULL",
+                    arrayOf(idProtocolo.toString())
+                ).use { c -> c.moveToFirst(); c.getInt(0) }
+                if (realizadas < 1) throw IllegalStateException("Se requiere al menos una prueba completa con resultado.")
+                val temperatura = datos[2].toDouble()
+                val humedad = datos[3].toDouble()
+                if (temperatura !in -10.0..60.0 || humedad !in 0.0..100.0) {
+                    throw IllegalStateException("Las condiciones ambientales deben estar dentro de los rangos permitidos.")
+                }
+            }
+            val idEstado = db.rawQuery(
+                "SELECT id_estado FROM $TABLA_ESTADO_PROTOCOLO WHERE codigo = ?",
+                arrayOf(nuevoEstado)
+            ).use { c -> if (c.moveToFirst()) c.getLong(0) else throw IllegalStateException("El estado no existe en SQLite.") }
+            val cv = ContentValues().apply {
+                put("id_estado", idEstado)
+                if (nuevoEstado == "OBSERVADO" || nuevoEstado == "ANULADO") put("observaciones", motivo.trim())
+            }
+            db.update(TABLA_PROTOCOLO, cv, "id_protocolo = ?", arrayOf(idProtocolo.toString()))
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
 }
-
-*/
