@@ -25,6 +25,7 @@ data class CrearProtocoloUiState(
     val pruebasCompletadas: Set<Long> = emptySet(),
     val elementosCompletados: Set<String> = emptySet(),
     val idProtocoloBorrador: Long? = null,
+    val modoEdicion: Boolean = false,
     val protocoloFinalizado: Boolean = false,
     val resumenResultados: List<String> = emptyList(),
     val elementoPrueba: String = "",

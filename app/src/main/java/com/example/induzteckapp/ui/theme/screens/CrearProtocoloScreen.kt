@@ -63,12 +63,16 @@ fun CrearProtocoloScreen(
     onIrABorradores: () -> Unit = {},
     onIrAHistorial: () -> Unit = {},
     idBorrador: Long = -1L,
+    idEdicion: Int = -1,
     viewModel: CrearProtocoloViewModel = viewModel()
 ) {
     val estado by viewModel.uiState.collectAsState()
 
     LaunchedEffect(idBorrador) {
         if (idBorrador > 0L) viewModel.cargarBorrador(idBorrador)
+    }
+    LaunchedEffect(idEdicion) {
+        if (idEdicion > 0) viewModel.cargarEdicion(idEdicion)
     }
 
     val titulosPasos = listOf(
@@ -80,7 +84,7 @@ fun CrearProtocoloScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nuevo protocolo") },
+                title = { Text(if (estado.modoEdicion) "Editar protocolo" else "Nuevo protocolo") },
                 navigationIcon = {
                     IconButton(onClick = onVolver) {
                         Icon(
@@ -953,5 +957,3 @@ private fun MensajeEstado(
         style = MaterialTheme.typography.bodyMedium
     )
 }
-
-

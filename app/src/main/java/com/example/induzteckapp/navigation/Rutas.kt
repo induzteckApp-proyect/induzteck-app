@@ -10,6 +10,9 @@ sealed class Ruta(val ruta: String) {
         fun nueva() = "crear_protocolo"
         fun recuperar(id: Long) = "crear_protocolo?borradorId=$id"
     }
+    data object EditarProtocolo : Ruta("editar_protocolo/{idProtocolo}") {
+        fun construir(idProtocolo: Int) = "editar_protocolo/$idProtocolo"
+    }
     data object ListaBorradores : Ruta("lista_borradores")
     data object HistorialProtocolos : Ruta("historial_protocolos")
 
@@ -20,4 +23,6 @@ sealed class Ruta(val ruta: String) {
     data object DetalleRespaldo : Ruta("detalle_respaldo/{idProtocolo}") {
         fun construir(idProtocolo: Int): String = "detalle_respaldo/$idProtocolo"
     }
+
+    data object Perfil : Ruta("perfil")
 }

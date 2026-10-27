@@ -29,6 +29,7 @@ fun InicioScreen(
     onIrANuevoProtocolo: () -> Unit = {},
     onIrAListaClientes: () -> Unit = {},
     onIrAListaInstalaciones: () -> Unit = {}, // Callback para la vista del cliente
+    onIrAPerfil: () -> Unit = {},
     viewModel: InicioViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -71,6 +72,18 @@ fun InicioScreen(
                     label = { Text("Inicio") },
                     selected = true,
                     onClick = { scope.launch { drawerState.close() } },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
+                    label = { Text("Mi Perfil") },
+                    selected = false,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            onIrAPerfil()
+                        }
+                    },
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
 

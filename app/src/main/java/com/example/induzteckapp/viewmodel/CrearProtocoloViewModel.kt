@@ -899,6 +899,7 @@ class CrearProtocoloViewModel(
             mostrarError("Inicia sesión nuevamente para recuperar el borrador.")
             return
         }
+
         viewModelScope.launch {
             _uiState.update { it.copy(cargando = true, mensajeError = null) }
             try {
@@ -996,6 +997,28 @@ class CrearProtocoloViewModel(
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(cargando = false, mensajeError = e.message ?: "No fue posible recuperar el borrador.") }
+            }
+        }
+    }
+
+    fun cargarEdicion(idProtocolo: Int) {
+        val userId = preferencias.leerSesion()
+        if (userId <= 0L) {
+            mostrarError("Inicia sesión nuevamente para editar el protocolo.")
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(modoEdicion = true, cargando = true, mensajeError = null) }
+            try {
+                withContext(Dispatchers.IO) {
+                    if (!dbHelper.obtenerDetalleProtocoloParaEdicion(idProtocolo.toLong(), userId)) {
+                        throw IllegalArgumentException("No se encontró el protocolo o no tienes permisos para editarlo.")
+                    }
+                    dbHelper.prepararProtocoloParaEdicion(idProtocolo.toLong(), userId)
+                }
+                cargarBorrador(idProtocolo.toLong())
+            } catch (e: Exception) {
+                _uiState.update { it.copy(cargando = false, mensajeError = e.message ?: "No fue posible preparar la edición.") }
             }
         }
     }

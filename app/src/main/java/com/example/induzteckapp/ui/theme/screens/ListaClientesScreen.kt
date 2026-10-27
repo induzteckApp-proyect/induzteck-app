@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.induzteckapp.R
@@ -49,6 +50,7 @@ import androidx.compose.ui.tooling.preview.Preview
 fun ListaClientesScreen(
     onVolver: () -> Unit = {},
     onProtocoloClick: (Int) -> Unit = {},
+    onEditarProtocolo: (Int) -> Unit = {},
     viewModel: ListaClientesViewModel = viewModel()
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -98,7 +100,8 @@ fun ListaClientesScreen(
                         onEquipoClick = { idEquipo ->
                             viewModel.toggleEquipoExpansion(cliente.idUsuario, idEquipo)
                         },
-                        onProtocoloClick = onProtocoloClick
+                        onProtocoloClick = onProtocoloClick,
+                        onEditarProtocolo = onEditarProtocolo
                     )
                 }
             }
@@ -111,7 +114,8 @@ fun ClienteCardItem(
     cliente: ClienteConsulta,
     onClienteClick: () -> Unit,
     onEquipoClick: (Int) -> Unit,
-    onProtocoloClick: (Int) -> Unit
+    onProtocoloClick: (Int) -> Unit,
+    onEditarProtocolo: (Int) -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -154,7 +158,8 @@ fun ClienteCardItem(
                         EquipoCardItem(
                             equipo = equipo,
                             onEquipoClick = { onEquipoClick(equipo.idEquipo) },
-                            onProtocoloClick = onProtocoloClick
+                            onProtocoloClick = onProtocoloClick,
+                            onEditarProtocolo = onEditarProtocolo
                         )
                     }
                 }
@@ -167,7 +172,8 @@ fun ClienteCardItem(
 fun EquipoCardItem(
     equipo: EquipoConsulta,
     onEquipoClick: () -> Unit,
-    onProtocoloClick: (Int) -> Unit
+    onProtocoloClick: (Int) -> Unit,
+    onEditarProtocolo: (Int) -> Unit = {}
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -205,37 +211,26 @@ fun EquipoCardItem(
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider()
                 Text(
-                    text = "Historial de Pruebas:",
+                    text = "Historial de Protocolos:",
                     style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 6.dp)
                 )
 
+                if (equipo.historialProtocolos.isEmpty()) {
+                    Text(
+                        text = "Sin revisiones registradas.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 equipo.historialProtocolos.forEach { protocolo ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onProtocoloClick(protocolo.idProtocolo) }
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "Nº: ${protocolo.numeroProtocolo}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "Fecha: ${protocolo.fechaHora} | Técnico: ${protocolo.tecnicoResponsable}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = "Estado: ${protocolo.estado}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        // Badge visual con el resultado global
-                        ResultadoBadge(resultado = protocolo.resultadoGlobal)
-                    }
+                    ProtocoloResumenItem(
+                        protocolo = protocolo,
+                        onClick = { onProtocoloClick(protocolo.idProtocolo) },
+                        onEditar = { onEditarProtocolo(protocolo.idProtocolo) }
+                    )
                 }
             }
         }

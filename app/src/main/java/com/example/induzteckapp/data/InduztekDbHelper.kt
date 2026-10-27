@@ -1481,6 +1481,33 @@ class InduztekDbHelper(context: Context) :
     }
 
     /**
+     * Actualiza la información editable del perfil del usuario (HU-08)
+     */
+    fun actualizarPerfilUsuario(
+        idUsuario: Long,
+        nombre: String,
+        apellido: String?,
+        giro: String?,
+        contactoNombre: String?,
+        telefono: String
+    ): Int {
+        val valores = ContentValues().apply {
+            put("nombre", nombre)
+            if (apellido != null) put("apellido", apellido)
+            if (giro != null) put("giro", giro)
+            if (contactoNombre != null) put("contacto_nombre", contactoNombre)
+            put("telefono", telefono)
+        }
+
+        return writableDatabase.update(
+            TABLA_USUARIO,
+            valores,
+            "id_usuario = ?",
+            arrayOf(idUsuario.toString())
+        )
+    }
+
+    /**
      * Método original conservado para los ViewModels existentes.
      */
     fun actualizarPassword(
@@ -1680,7 +1707,7 @@ class InduztekDbHelper(context: Context) :
         )
     }
     // nuevo (25/10/2026)
-// 1. Obtener clientes con instalaciones y equipos usando tus constantes (CA-2.1)
+    // 1. Obtener clientes con instalaciones y equipos usando tus constantes (CA-2.1)
     fun obtenerClientesConActivos(filtro: String = ""): List<ClienteConsulta> {
         val clientesMap = mutableMapOf<Int, ClienteConsulta>()
         val db = readableDatabase
@@ -1691,9 +1718,9 @@ class InduztekDbHelper(context: Context) :
             i.id_instalacion, i.nombre AS instalacion_nombre,
             e.id_equipo, e.tag, te.nombre AS tipo_equipo
         FROM $TABLA_USUARIO u
-        JOIN $TABLA_INSTALACION i ON u.id_usuario = i.id_usuario_cliente
-        JOIN $TABLA_EQUIPO e ON i.id_instalacion = e.id_instalacion
-        JOIN $TABLA_TIPO_EQUIPO te ON e.id_tipo_equipo = te.id_tipo_equipo
+        LEFT JOIN $TABLA_INSTALACION i ON u.id_usuario = i.id_usuario_cliente
+        LEFT JOIN $TABLA_EQUIPO e ON i.id_instalacion = e.id_instalacion
+        LEFT JOIN $TABLA_TIPO_EQUIPO te ON e.id_tipo_equipo = te.id_tipo_equipo
         WHERE u.id_rol = (SELECT id_rol FROM $TABLA_ROL WHERE codigo = 'CLIENTE')
           AND (? = '' OR u.nombre LIKE '%' || ? || '%' OR e.tag LIKE '%' || ? || '%' OR i.nombre LIKE '%' || ? || '%')
         ORDER BY u.nombre ASC, i.nombre ASC, e.tag ASC
@@ -1704,13 +1731,8 @@ class InduztekDbHelper(context: Context) :
         if (cursor.moveToFirst()) {
             do {
                 val idUsuario = cursor.getInt(cursor.getColumnIndexOrThrow("id_usuario"))
-                val clienteNombre = cursor.getString(cursor.getColumnIndexOrThrow("cliente_nombre"))
-                val rut = cursor.getString(cursor.getColumnIndexOrThrow("rut"))
-                val idInstalacion = cursor.getInt(cursor.getColumnIndexOrThrow("id_instalacion"))
-                val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre"))
-                val idEquipo = cursor.getInt(cursor.getColumnIndexOrThrow("id_equipo"))
-                val tag = cursor.getString(cursor.getColumnIndexOrThrow("tag"))
-                val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo"))
+                val clienteNombre = cursor.getString(cursor.getColumnIndexOrThrow("cliente_nombre")) ?: "Sin Nombre"
+                val rut = cursor.getString(cursor.getColumnIndexOrThrow("rut")) ?: ""
 
                 val cliente = clientesMap.getOrPut(idUsuario) {
                     ClienteConsulta(
@@ -1721,27 +1743,38 @@ class InduztekDbHelper(context: Context) :
                     )
                 }
 
-                val instalacionesList = cliente.instalaciones as MutableList<InstalacionConsulta>
-                var instalacion = instalacionesList.find { it.idInstalacion == idInstalacion }
-                if (instalacion == null) {
-                    instalacion = InstalacionConsulta(
-                        idInstalacion = idInstalacion,
-                        nombre = instalacionNombre,
-                        equipos = mutableListOf()
-                    )
-                    instalacionesList.add(instalacion)
-                }
+                if (!cursor.isNull(cursor.getColumnIndexOrThrow("id_instalacion"))) {
+                    val idInstalacion = cursor.getInt(cursor.getColumnIndexOrThrow("id_instalacion"))
+                    val instalacionNombre = cursor.getString(cursor.getColumnIndexOrThrow("instalacion_nombre")) ?: "Instalación"
 
-                val equiposList = instalacion.equipos as MutableList<EquipoConsulta>
-                if (equiposList.none { it.idEquipo == idEquipo }) {
-                    equiposList.add(
-                        EquipoConsulta(
-                            idEquipo = idEquipo,
-                            tag = tag,
-                            tipoEquipo = tipoEquipo,
-                            instalacionNombre = instalacionNombre // Etiqueta contextual (CA-2.2)
+                    val instalacionesList = cliente.instalaciones as MutableList<InstalacionConsulta>
+                    var instalacion = instalacionesList.find { it.idInstalacion == idInstalacion }
+                    if (instalacion == null) {
+                        instalacion = InstalacionConsulta(
+                            idInstalacion = idInstalacion,
+                            nombre = instalacionNombre,
+                            equipos = mutableListOf()
                         )
-                    )
+                        instalacionesList.add(instalacion)
+                    }
+
+                    if (!cursor.isNull(cursor.getColumnIndexOrThrow("id_equipo"))) {
+                        val idEquipo = cursor.getInt(cursor.getColumnIndexOrThrow("id_equipo"))
+                        val tag = cursor.getString(cursor.getColumnIndexOrThrow("tag")) ?: "TAG"
+                        val tipoEquipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo_equipo")) ?: "Equipo"
+
+                        val equiposList = instalacion.equipos as MutableList<EquipoConsulta>
+                        if (equiposList.none { it.idEquipo == idEquipo }) {
+                            equiposList.add(
+                                EquipoConsulta(
+                                    idEquipo = idEquipo,
+                                    tag = tag,
+                                    tipoEquipo = tipoEquipo,
+                                    instalacionNombre = instalacionNombre
+                                )
+                            )
+                        }
+                    }
                 }
             } while (cursor.moveToNext())
         }
@@ -1758,7 +1791,7 @@ class InduztekDbHelper(context: Context) :
         SELECT 
             p.id_protocolo, p.numero, p.fecha_hora_prueba,
             ep.nombre AS estado,
-            u.nombre AS tecnico_nombre,
+            COALESCE(u.nombre, 'Técnico') AS tecnico_nombre,
             COALESCE((
                 SELECT CASE
                     WHEN SUM(CASE WHEN pr.id_resultado = $RESULTADO_RECHAZADO THEN 1 ELSE 0 END) > 0 THEN 'Rechazado'
@@ -1769,7 +1802,7 @@ class InduztekDbHelper(context: Context) :
             ), 'Aprobado') AS resultado_global
         FROM $TABLA_PROTOCOLO p
         JOIN $TABLA_ESTADO_PROTOCOLO ep ON p.id_estado = ep.id_estado
-        JOIN $TABLA_USUARIO u ON p.id_usuario_registra = u.id_usuario
+        LEFT JOIN $TABLA_USUARIO u ON p.id_usuario_registra = u.id_usuario
         WHERE p.id_equipo = ?
         ORDER BY p.fecha_hora_prueba DESC
     """.trimIndent()
@@ -1777,14 +1810,21 @@ class InduztekDbHelper(context: Context) :
         val cursor = db.rawQuery(query, arrayOf(idEquipo.toString()))
         if (cursor.moveToFirst()) {
             do {
+                val idProtocolo = cursor.getInt(cursor.getColumnIndexOrThrow("id_protocolo"))
+                val numero = cursor.getString(cursor.getColumnIndexOrThrow("numero")) ?: ""
+                val fecha = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba")) ?: ""
+                val estado = cursor.getString(cursor.getColumnIndexOrThrow("estado")) ?: "Registrado"
+                val tecnicoNombre = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre")) ?: "Técnico"
+                val resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global")) ?: "Aprobado"
+
                 historial.add(
                     ProtocoloResumen(
-                        idProtocolo = cursor.getInt(cursor.getColumnIndexOrThrow("id_protocolo")),
-                        numeroProtocolo = cursor.getString(cursor.getColumnIndexOrThrow("numero")),
-                        fechaHora = cursor.getString(cursor.getColumnIndexOrThrow("fecha_hora_prueba")),
-                        estado = cursor.getString(cursor.getColumnIndexOrThrow("estado")),
-                        resultadoGlobal = cursor.getString(cursor.getColumnIndexOrThrow("resultado_global")),
-                        tecnicoResponsable = cursor.getString(cursor.getColumnIndexOrThrow("tecnico_nombre"))
+                        idProtocolo = idProtocolo,
+                        numeroProtocolo = numero,
+                        fechaHora = fecha,
+                        estado = estado,
+                        resultadoGlobal = resultadoGlobal,
+                        tecnicoResponsable = tecnicoNombre
                     )
                 )
             } while (cursor.moveToNext())
@@ -1969,7 +2009,7 @@ class InduztekDbHelper(context: Context) :
         val pruebasList = mutableListOf<PruebaDetalle>()
         val queryPruebas = """
             SELECT
-                pr.id_prueba, tp.nombre AS tipo_prueba, pr.elemento, pr.momento,
+                pr.id_prueba, tp.nombre AS tipo_prueba, COALESCE(pr.elemento, '') AS elemento, pr.momento,
                 COALESCE((
                     SELECT GROUP_CONCAT(m.valor, ', ')
                     FROM $TABLA_MEDICION m
@@ -2940,6 +2980,69 @@ class InduztekDbHelper(context: Context) :
                 humedadPct = c.getDouble(5)
             )
         }
+
+    }
+
+    fun prepararProtocoloParaEdicion(idProtocolo: Long, idUsuarioRegistra: Long) {
+            val db = writableDatabase
+            db.beginTransaction()
+            try {
+                val perteneceAlUsuario = db.rawQuery(
+                    """
+                    SELECT 1 FROM $TABLA_PROTOCOLO
+                    WHERE id_protocolo = ? AND id_usuario_registra = ?
+                    """.trimIndent(),
+                    arrayOf(idProtocolo.toString(), idUsuarioRegistra.toString())
+                ).use { it.moveToFirst() }
+                if (!perteneceAlUsuario) {
+                    throw IllegalArgumentException("El protocolo no pertenece al técnico autenticado.")
+                }
+
+                val idBorrador = db.rawQuery(
+                    "SELECT id_estado FROM $TABLA_ESTADO_PROTOCOLO WHERE codigo = 'BORRADOR'",
+                    null
+                ).use { c ->
+                    if (c.moveToFirst()) c.getLong(0)
+                    else throw IllegalStateException("No existe el estado BORRADOR.")
+                }
+                db.delete(
+                    TABLA_MEDICION,
+                    "id_prueba IN (SELECT id_prueba FROM $TABLA_PRUEBA WHERE id_protocolo = ?)",
+                    arrayOf(idProtocolo.toString())
+                )
+                db.update(
+                    TABLA_PRUEBA,
+                    ContentValues().apply {
+                        put("realizada", 0)
+                        putNull("id_resultado")
+                        put("motivo_no_realizada", "PENDIENTE")
+                    },
+                    "id_protocolo = ?",
+                    arrayOf(idProtocolo.toString())
+                )
+                db.update(
+                    TABLA_PROTOCOLO,
+                    ContentValues().apply { put("id_estado", idBorrador) },
+                    "id_protocolo = ?",
+                    arrayOf(idProtocolo.toString())
+                )
+                db.setTransactionSuccessful()
+            } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun obtenerDetalleProtocoloParaEdicion(
+        idProtocolo: Long,
+        idUsuarioRegistra: Long
+    ): Boolean {
+        return readableDatabase.rawQuery(
+            """
+            SELECT 1 FROM $TABLA_PROTOCOLO
+            WHERE id_protocolo = ? AND id_usuario_registra = ?
+            """.trimIndent(),
+            arrayOf(idProtocolo.toString(), idUsuarioRegistra.toString())
+        ).use { it.moveToFirst() }
     }
 
     fun obtenerTiposPruebaCompletados(idProtocolo: Long): Set<Long> {

@@ -17,6 +17,8 @@ import com.example.induzteckapp.ui.theme.screens.ListaClientesScreen
 import com.example.induzteckapp.ui.theme.screens.ListaInstalacionesScreen
 import com.example.induzteckapp.ui.theme.screens.ListaBorradoresScreen
 import com.example.induzteckapp.ui.theme.screens.HistorialProtocolosScreen
+import com.example.induzteckapp.ui.theme.screens.DetalleRespaldoDigitalScreen
+import com.example.induzteckapp.ui.theme.screens.PerfilScreen
 @Composable
 fun AppNavegacion() {
     val navController = rememberNavController()
@@ -67,7 +69,10 @@ fun AppNavegacion() {
                     navController.navigate(Ruta.ListaClientes.ruta)
                 },
                 onIrAListaInstalaciones = {
-                    navController.navigate(Ruta.ListaInstalaciones.ruta) // <--- ¡FALTABA CONECTAR ESTA RUTA!
+                    navController.navigate(Ruta.ListaInstalaciones.ruta)
+                },
+                onIrAPerfil = {
+                    navController.navigate(Ruta.Perfil.ruta)
                 }
             )
         }
@@ -104,15 +109,56 @@ fun AppNavegacion() {
 
         composable(Ruta.ListaClientes.ruta) {
             ListaClientesScreen(
-                onVolver = { navController.popBackStack() }
+                onVolver = { navController.popBackStack() },
+                onProtocoloClick = { idProtocolo ->
+                    navController.navigate(Ruta.DetalleRespaldo.construir(idProtocolo))
+                },
+                onEditarProtocolo = { idProtocolo ->
+                    navController.navigate(Ruta.EditarProtocolo.construir(idProtocolo))
+                }
+            )
+        }
+
+        composable(
+            route = Ruta.EditarProtocolo.ruta,
+            arguments = listOf(navArgument("idProtocolo") { type = NavType.IntType })
+        ) { entrada ->
+            CrearProtocoloScreen(
+                onVolver = { navController.popBackStack() },
+                onIrABorradores = { navController.navigate(Ruta.ListaBorradores.ruta) },
+                onIrAHistorial = { navController.popBackStack() },
+                idEdicion = entrada.arguments?.getInt("idProtocolo") ?: -1
             )
         }
 
         // -----------------------------------------------------
-        // VISTA DE INSTALACIONES (Exclusiva Cliente)
+        // VISTA DE INSTALACIONES (Exclusiva Cliente HU-03)
         // -----------------------------------------------------
         composable(Ruta.ListaInstalaciones.ruta) {
             ListaInstalacionesScreen(
+                onVolver = { navController.popBackStack() },
+                onProtocoloClick = { idProtocolo ->
+                    navController.navigate(Ruta.DetalleRespaldo.construir(idProtocolo))
+                }
+            )
+        }
+
+        // -----------------------------------------------------
+        // PANTALLA DETALLE DEL RESPALDO DIGITAL (Solo Lectura)
+        // -----------------------------------------------------
+        composable(
+            route = Ruta.DetalleRespaldo.ruta,
+            arguments = listOf(navArgument("idProtocolo") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val idProtocolo = backStackEntry.arguments?.getInt("idProtocolo") ?: -1
+            DetalleRespaldoDigitalScreen(
+                idProtocolo = idProtocolo,
+                onVolver = { navController.popBackStack() }
+            )
+        }
+
+        composable(Ruta.Perfil.ruta) {
+            PerfilScreen(
                 onVolver = { navController.popBackStack() }
             )
         }

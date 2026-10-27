@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -228,7 +229,7 @@ fun EquipoClienteCardItem(
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider()
                 Text(
-                    text = "Historial de Revisiones Electrónicas:",
+                    text = "Historial de Protocolos:",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 6.dp)
@@ -242,36 +243,49 @@ fun EquipoClienteCardItem(
                     )
                 } else {
                     equipo.historialProtocolos.forEach { protocolo ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onProtocoloClick(protocolo.idProtocolo) }
-                                .padding(vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Nº Protocolo: ${protocolo.numeroProtocolo}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "Fecha: ${protocolo.fechaHora} | Técnico: ${protocolo.tecnicoResponsable}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            Column(
-                                horizontalAlignment = Alignment.End,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                EstadoFormalizacionBadge(estado = protocolo.estado)
-                                ResultadoClienteBadge(resultado = protocolo.resultadoGlobal)
-                            }
-                        }
+                        ProtocoloResumenItem(
+                            protocolo = protocolo,
+                            onClick = { onProtocoloClick(protocolo.idProtocolo) }
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ProtocoloResumenItem(
+    protocolo: ProtocoloResumen,
+    onClick: () -> Unit,
+    onEditar: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Nº Protocolo: ${protocolo.numeroProtocolo}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "Fecha: ${protocolo.fechaHora} | Técnico: ${protocolo.tecnicoResponsable}",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            EstadoFormalizacionBadge(estado = protocolo.estado)
+            ResultadoClienteBadge(resultado = protocolo.resultadoGlobal)
+            onEditar?.let { TextButton(onClick = it) { Text("Editar") } }
         }
     }
 }

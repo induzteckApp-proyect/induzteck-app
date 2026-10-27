@@ -21,12 +21,21 @@ class DetalleRespaldoViewModel(application: Application) : AndroidViewModel(appl
     private val _cargandoState = MutableStateFlow(true)
     val cargandoState: StateFlow<Boolean> = _cargandoState.asStateFlow()
 
+    private val _errorState = MutableStateFlow<String?>(null)
+    val errorState: StateFlow<String?> = _errorState.asStateFlow()
+
     fun cargarDetalle(idProtocolo: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             _cargandoState.value = true
-            val detalle = dbHelper.obtenerDetalleProtocolo(idProtocolo)
-            _protocoloState.value = detalle
-            _cargandoState.value = false
+            _errorState.value = null
+            try {
+                _protocoloState.value = dbHelper.obtenerDetalleProtocolo(idProtocolo)
+            } catch (_: Exception) {
+                _protocoloState.value = null
+                _errorState.value = "No fue posible cargar el detalle del protocolo."
+            } finally {
+                _cargandoState.value = false
+            }
         }
     }
 }
