@@ -1,7 +1,16 @@
-// com.example.induzteckapp/ui/theme/screens/CrearProtocoloScreen.kt
-
 package com.example.induzteckapp.ui.theme.screens
 
+import android.content.Context
+import android.location.Geocoder
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
@@ -50,11 +60,13 @@ import com.example.induzteckapp.model.Comuna
 import com.example.induzteckapp.model.CrearProtocoloUiState
 import com.example.induzteckapp.model.Region
 import com.example.induzteckapp.model.TipoEquipo
+import com.example.induzteckapp.permisos.PermisosUbicacion
 import com.example.induzteckapp.ui.theme.components.BotonPrincipal
 import com.example.induzteckapp.ui.theme.components.BotonSecundario
 import com.example.induzteckapp.ui.theme.components.TarjetaSeccion
 import com.example.induzteckapp.ui.theme.theme.MiRegistroTheme
 import com.example.induzteckapp.viewmodel.CrearProtocoloViewModel
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,9 +78,211 @@ fun CrearProtocoloScreen(
     viewModel: CrearProtocoloViewModel = viewModel()
 ) {
     val estado by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val locationManager = remember(context) {
+        context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    }
+    var cargandoUbicacion by remember { mutableStateOf(false) }
+    var mensajeUbicacion by remember { mutableStateOf<String?>(null) }
+    var intentoUbicacion by remember { mutableStateOf(0) }
+    var mostrarAjustesPermisoUbicacion by remember { mutableStateOf(false) }
+    var mostrarAjustesDispositivoUbicacion by remember { mutableStateOf(false) }
+
+    fun procesarUbicacion(ubicacion: Location) {
+        mensajeUbicacion = "Ubicación obtenida. Buscando una dirección legible…"
+        Thread {
+            var direccion: String? = null
+            try {
+                if (Geocoder.isPresent()) {
+                    val geocoder = Geocoder(context, Locale.getDefault())
+                    @Suppress("DEPRECATION")
+                    val direcciones = geocoder.getFromLocation(
+                        ubicacion.latitude,
+                        ubicacion.longitude,
+                        1
+                    )
+                    val primera = direcciones?.firstOrNull()
+                    direccion = primera?.getAddressLine(0)
+                        ?.takeIf { it.isNotBlank() }
+                        ?: listOfNotNull(
+                            primera?.subLocality,
+                            primera?.locality,
+                            primera?.adminArea,
+                            primera?.countryName
+                        ).joinToString(", ").takeIf { it.isNotBlank() }
+                }
+            } catch (_: Exception) {
+                // La geocodificación puede no estar disponible en todos los dispositivos.
+            }
+
+            val direccionFinal = direccion
+            val textoUbicacion = direccionFinal ?: String.format(
+                Locale.US,
+                "Coordenadas: %.6f, %.6f",
+                ubicacion.latitude,
+                ubicacion.longitude
+            )
+            val direccionLegibleObtenida = !direccionFinal.isNullOrBlank()
+
+            Handler(Looper.getMainLooper()).post {
+                if (!viewModel.uiState.value.mostrarFormularioInstalacion) return@post
+                viewModel.actualizarUbicacionInstalacion(textoUbicacion)
+                cargandoUbicacion = false
+                mostrarAjustesPermisoUbicacion = false
+                mostrarAjustesDispositivoUbicacion = false
+                mensajeUbicacion = if (direccionLegibleObtenida) {
+                    "Ubicación completada. Puedes editar la dirección antes de guardar."
+                } else {
+                    "No se obtuvo una dirección legible; se cargaron las coordenadas y puedes editarlas."
+                }
+            }
+        }.start()
+    }
+
+    fun consultarProveedor(proveedores: List<String>, indice: Int = 0) {
+        if (indice >= proveedores.size) {
+            cargandoUbicacion = false
+            mensajeUbicacion = "No se pudo obtener una ubicación actual. Puedes escribir la dirección manualmente."
+            return
+        }
+
+        val proveedor = proveedores[indice]
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                locationManager.getCurrentLocation(
+                    proveedor,
+                    null,
+                    context.mainExecutor
+                ) { ubicacion ->
+                    if (ubicacion != null) {
+                        procesarUbicacion(ubicacion)
+                    } else {
+                        consultarProveedor(proveedores, indice + 1)
+                    }
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                val ultimaUbicacion = locationManager.getLastKnownLocation(proveedor)
+                if (ultimaUbicacion != null) {
+                    procesarUbicacion(ultimaUbicacion)
+                } else {
+                    val listener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) {
+                            locationManager.removeUpdates(this)
+                            procesarUbicacion(location)
+                        }
+
+                        @Deprecated("Deprecated in Android")
+                        override fun onStatusChanged(
+                            provider: String?,
+                            status: Int,
+                            extras: Bundle?
+                        ) = Unit
+
+                        override fun onProviderEnabled(provider: String) = Unit
+                        override fun onProviderDisabled(provider: String) = Unit
+                    }
+                    @Suppress("DEPRECATION")
+                    locationManager.requestSingleUpdate(
+                        proveedor,
+                        listener,
+                        Looper.getMainLooper()
+                    )
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (cargandoUbicacion) {
+                            runCatching { locationManager.removeUpdates(listener) }
+                            cargandoUbicacion = false
+                            mensajeUbicacion = "El dispositivo no entregó una ubicación a tiempo. Puedes ingresar la dirección manualmente."
+                        }
+                    }, 15000L)
+                }
+            }
+        } catch (_: SecurityException) {
+            cargandoUbicacion = false
+            mensajeUbicacion = "Android no permitió acceder a la ubicación. Puedes continuar escribiendo la dirección."
+            mostrarAjustesPermisoUbicacion = true
+        } catch (_: Exception) {
+            cargandoUbicacion = false
+            mensajeUbicacion = "Ocurrió un problema al consultar la ubicación. Puedes ingresarla manualmente."
+        }
+    }
+
+    fun obtenerUbicacionActual() {
+        if (!PermisosUbicacion.tienePermiso(context)) {
+            mensajeUbicacion = null
+            return
+        }
+
+        val proveedores = try {
+            listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
+                .filter { proveedor ->
+                    runCatching { locationManager.isProviderEnabled(proveedor) }.getOrDefault(false)
+                }
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        if (proveedores.isEmpty()) {
+            cargandoUbicacion = false
+            mensajeUbicacion = "Activa los servicios de ubicación del dispositivo o escribe la dirección manualmente."
+            mostrarAjustesDispositivoUbicacion = true
+            return
+        }
+
+        intentoUbicacion += 1
+        val intentoActual = intentoUbicacion
+        cargandoUbicacion = true
+        mensajeUbicacion = "Obteniendo ubicación…"
+        mostrarAjustesDispositivoUbicacion = false
+        consultarProveedor(proveedores)
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (
+                intentoUbicacion == intentoActual &&
+                cargandoUbicacion &&
+                mensajeUbicacion == "Obteniendo ubicación…"
+            ) {
+                cargandoUbicacion = false
+                mensajeUbicacion = "No se recibió una ubicación a tiempo. Puedes escribir la dirección manualmente."
+            }
+        }, 20000L)
+    }
+
+    val lanzadorPermisoUbicacion = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permisos ->
+        val concedido = permisos.values.any { it } || PermisosUbicacion.tienePermiso(context)
+        if (concedido) {
+            obtenerUbicacionActual()
+        } else {
+            cargandoUbicacion = false
+            mensajeUbicacion = "Permiso denegado. Puedes escribir la dirección manualmente o revisar los permisos en Ajustes."
+            mostrarAjustesPermisoUbicacion = true
+        }
+    }
+
+    fun solicitarUbicacion() {
+        mensajeUbicacion = null
+        mostrarAjustesPermisoUbicacion = false
+        mostrarAjustesDispositivoUbicacion = false
+        if (PermisosUbicacion.tienePermiso(context)) {
+            obtenerUbicacionActual()
+        } else {
+            lanzadorPermisoUbicacion.launch(PermisosUbicacion.PERMISOS_UBICACION)
+        }
+    }
 
     LaunchedEffect(idBorrador) {
         if (idBorrador > 0L) viewModel.cargarBorrador(idBorrador)
+    }
+
+    LaunchedEffect(estado.mostrarFormularioInstalacion) {
+        if (!estado.mostrarFormularioInstalacion) {
+            mensajeUbicacion = null
+            mostrarAjustesPermisoUbicacion = false
+            mostrarAjustesDispositivoUbicacion = false
+            cargandoUbicacion = false
+        }
     }
 
     val titulosPasos = listOf(
@@ -211,7 +425,18 @@ fun CrearProtocoloScreen(
 
             if (!estado.protocoloFinalizado) {
                 when (estado.pasoActual) {
-                    1 -> PasoContexto(estado = estado, viewModel = viewModel)
+
+                    1 -> PasoContexto(
+                        estado = estado,
+                        viewModel = viewModel,
+                        context = context,
+                        cargandoUbicacion = cargandoUbicacion,
+                        mensajeUbicacion = mensajeUbicacion,
+                        mostrarAjustesPermisoUbicacion = mostrarAjustesPermisoUbicacion,
+                        mostrarAjustesDispositivoUbicacion = mostrarAjustesDispositivoUbicacion,
+                        onSolicitarUbicacion = { solicitarUbicacion() }
+                    )
+
                     2 -> PasoAmbiental(estado = estado, viewModel = viewModel)
                     3 -> PasoMediciones(estado = estado, viewModel = viewModel)
                 }
@@ -276,8 +501,17 @@ fun CrearProtocoloScreen(
 
 @Composable
 private fun PasoContexto(
+
     estado: CrearProtocoloUiState,
-    viewModel: CrearProtocoloViewModel
+    viewModel: CrearProtocoloViewModel,
+    context: Context,
+    cargandoUbicacion: Boolean,
+    mensajeUbicacion: String?,
+    mostrarAjustesPermisoUbicacion: Boolean,
+    mostrarAjustesDispositivoUbicacion: Boolean,
+    onSolicitarUbicacion: () -> Unit
+
+
 ) {
     TarjetaSeccion(titulo = "1. Contexto de terreno") {
         Text(
@@ -293,6 +527,8 @@ private fun PasoContexto(
             seleccionado = estado.clienteSeleccionado?.nombreDesplegable.orEmpty(),
             opciones = estado.clientes.map { it.nombreDesplegable },
             habilitado = !estado.cargando && !estado.guardando && estado.idProtocoloBorrador == null,
+            error = estado.erroresCampos["clienteSeleccionado"] != null,
+            mensajeError = estado.erroresCampos["clienteSeleccionado"],
             alSeleccionar = { indice ->
                 viewModel.seleccionarCliente(estado.clientes[indice])
             }
@@ -308,6 +544,8 @@ private fun PasoContexto(
                     "${it.nombre} — ${it.nombreComuna}"
                 },
                 habilitado = !estado.guardando && estado.idProtocoloBorrador == null,
+                error = estado.erroresCampos["instalacionSeleccionada"] != null,
+                mensajeError = estado.erroresCampos["instalacionSeleccionada"],
                 alSeleccionar = { indice ->
                     viewModel.seleccionarInstalacion(
                         estado.instalaciones[indice]
@@ -332,8 +570,27 @@ private fun PasoContexto(
             }
 
             if (estado.mostrarFormularioInstalacion) {
-                FormularioInstalacion(estado, viewModel)
+                FormularioInstalacion(
+                    estado = estado,
+                    viewModel = viewModel,
+                    cargandoUbicacion = cargandoUbicacion,
+                    mensajeUbicacion = mensajeUbicacion,
+                    mostrarAjustesPermisoUbicacion = mostrarAjustesPermisoUbicacion,
+                    mostrarAjustesDispositivoUbicacion = mostrarAjustesDispositivoUbicacion,
+                    onSolicitarUbicacion = onSolicitarUbicacion,
+                    onAbrirAjustesPermiso = {
+                        runCatching {
+                            PermisosUbicacion.abrirAjustesAplicacion(context)
+                        }
+                    },
+                    onAbrirAjustesDispositivo = {
+                        runCatching {
+                            PermisosUbicacion.abrirAjustesUbicacion(context)
+                        }
+                    }
+                )
             }
+
         }
 
         if (estado.instalacionSeleccionada != null) {
@@ -346,6 +603,8 @@ private fun PasoContexto(
                     "${it.tag} — ${it.nombreTipoEquipo}"
                 },
                 habilitado = !estado.guardando && estado.idProtocoloBorrador == null,
+                error = estado.erroresCampos["equipoSeleccionado"] != null,
+                mensajeError = estado.erroresCampos["equipoSeleccionado"],
                 alSeleccionar = { indice ->
                     viewModel.seleccionarEquipo(estado.equipos[indice])
                 }
@@ -401,6 +660,13 @@ private fun PasoContexto(
                     )
                 }
             }
+            estado.erroresCampos["pruebasSeleccionadas"]?.let { error ->
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             Text(
                 text = "Las pruebas se solicitarán una por una en el orden seleccionado.",
                 style = MaterialTheme.typography.bodySmall,
@@ -413,7 +679,14 @@ private fun PasoContexto(
 @Composable
 private fun FormularioInstalacion(
     estado: CrearProtocoloUiState,
-    viewModel: CrearProtocoloViewModel
+    viewModel: CrearProtocoloViewModel,
+    cargandoUbicacion: Boolean,
+    mensajeUbicacion: String?,
+    mostrarAjustesPermisoUbicacion: Boolean,
+    mostrarAjustesDispositivoUbicacion: Boolean,
+    onSolicitarUbicacion: () -> Unit,
+    onAbrirAjustesPermiso: () -> Unit,
+    onAbrirAjustesDispositivo: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
@@ -426,21 +699,59 @@ private fun FormularioInstalacion(
             etiqueta = "Nombre de la instalación *",
             valor = estado.nombreInstalacion,
             alCambiar = viewModel::actualizarNombreInstalacion,
-            error = estado.mensajeError != null && estado.nombreInstalacion.isBlank()
+            error = estado.erroresCampos["nombreInstalacion"] != null,
+            mensajeError = estado.erroresCampos["nombreInstalacion"]
         )
 
         CampoTexto(
             etiqueta = "Ubicación o dirección *",
             valor = estado.ubicacionInstalacion,
             alCambiar = viewModel::actualizarUbicacionInstalacion,
-            error = estado.mensajeError != null && estado.ubicacionInstalacion.isBlank()
+            error = estado.erroresCampos["ubicacionInstalacion"] != null ||
+                    (estado.mensajeError != null && estado.ubicacionInstalacion.isBlank()),
+            mensajeError = estado.erroresCampos["ubicacionInstalacion"]
         )
+
+        BotonSecundario(
+            texto = if (cargandoUbicacion) "Obteniendo ubicación…" else "Usar ubicación actual",
+            onClick = onSolicitarUbicacion,
+            modifier = Modifier.fillMaxWidth(),
+            habilitado = !cargandoUbicacion && !estado.guardando
+        )
+        Text(
+            text = "Opcional: puedes completar este campo con tu ubicación y editar la dirección manualmente.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        mensajeUbicacion?.let { mensaje ->
+            Text(
+                text = mensaje,
+                color = if (mensaje.startsWith("No se pudo") ||
+                    mensaje.startsWith("Permiso denegado") ||
+                    mensaje.startsWith("Activa") ||
+                    mensaje.startsWith("Ocurrió") ||
+                    mensaje.startsWith("Android no")
+                ) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        if (mostrarAjustesPermisoUbicacion) {
+            TextButton(onClick = onAbrirAjustesPermiso) {
+                Text("Abrir ajustes de permisos")
+            }
+        }
+        if (mostrarAjustesDispositivoUbicacion) {
+            TextButton(onClick = onAbrirAjustesDispositivo) {
+                Text("Activar ubicación del dispositivo")
+            }
+        }
 
         Selector(
             etiqueta = "Región *",
             seleccionado = estado.regionSeleccionada?.nombre.orEmpty(),
             opciones = estado.regiones.map { it.nombre },
-            error = estado.mensajeError != null && estado.regionSeleccionada == null,
+            error = estado.erroresCampos["regionSeleccionada"] != null,
+            mensajeError = estado.erroresCampos["regionSeleccionada"],
             alSeleccionar = { indice ->
                 viewModel.seleccionarRegion(estado.regiones[indice])
             }
@@ -455,7 +766,8 @@ private fun FormularioInstalacion(
             seleccionado = estado.comunaSeleccionada?.nombre.orEmpty(),
             opciones = comunasFiltradas.map { it.nombre },
             habilitado = estado.regionSeleccionada != null,
-            error = estado.mensajeError != null && estado.comunaSeleccionada == null,
+            error = estado.erroresCampos["comunaSeleccionada"] != null,
+            mensajeError = estado.erroresCampos["comunaSeleccionada"],
             alSeleccionar = { indice ->
                 viewModel.seleccionarComuna(comunasFiltradas[indice])
             }
@@ -499,7 +811,8 @@ private fun FormularioEquipo(
             etiqueta = "Tipo de equipo *",
             seleccionado = estado.tipoEquipoSeleccionado?.nombre.orEmpty(),
             opciones = estado.tiposEquipo.map { it.nombre },
-            error = estado.mensajeError != null && estado.tipoEquipoSeleccionado == null,
+            error = estado.erroresCampos["tipoEquipoSeleccionado"] != null,
+            mensajeError = estado.erroresCampos["tipoEquipoSeleccionado"],
             alSeleccionar = { indice ->
                 viewModel.seleccionarTipoEquipo(estado.tiposEquipo[indice])
             }
@@ -509,7 +822,8 @@ private fun FormularioEquipo(
             etiqueta = "TAG del equipo *",
             valor = estado.tagEquipo,
             alCambiar = viewModel::actualizarTagEquipo,
-            error = estado.mensajeError != null && estado.tagEquipo.isBlank()
+            error = estado.erroresCampos["tagEquipo"] != null,
+            mensajeError = estado.erroresCampos["tagEquipo"]
         )
 
         CampoTexto(
@@ -533,19 +847,25 @@ private fun FormularioEquipo(
         CampoDecimal(
             etiqueta = "Potencia (kVA)",
             valor = estado.potenciaKva,
-            alCambiar = viewModel::actualizarPotenciaKva
+            alCambiar = viewModel::actualizarPotenciaKva,
+            error = estado.erroresCampos["potenciaKva"] != null,
+            mensajeError = estado.erroresCampos["potenciaKva"]
         )
 
         CampoDecimal(
             etiqueta = "Tensiones (V)",
             valor = estado.tensiones,
-            alCambiar = viewModel::actualizarTensiones
+            alCambiar = viewModel::actualizarTensiones,
+            error = estado.erroresCampos["tensiones"] != null,
+            mensajeError = estado.erroresCampos["tensiones"]
         )
 
         CampoDecimal(
             etiqueta = "Corriente (A)",
             valor = estado.corriente,
-            alCambiar = viewModel::actualizarCorriente
+            alCambiar = viewModel::actualizarCorriente,
+            error = estado.erroresCampos["corriente"] != null,
+            mensajeError = estado.erroresCampos["corriente"]
         )
 
         val tipoEquipoTexto = (estado.tipoEquipoSeleccionado?.nombre.orEmpty() + " " +
@@ -556,7 +876,8 @@ private fun FormularioEquipo(
                 valor = estado.maxContactosUohm,
                 alCambiar = viewModel::actualizarMaxContactosUohm,
                 nota = "Obligatoria para interruptores y celdas MT. Ejemplo: 50.0 µΩ.",
-                error = estado.mensajeError != null && (estado.maxContactosUohm.toDoubleOrNull() ?: 0.0) <= 0.0
+                error = estado.erroresCampos["maxContactosUohm"] != null,
+                mensajeError = estado.erroresCampos["maxContactosUohm"]
             )
         }
 
@@ -589,14 +910,17 @@ private fun PasoAmbiental(
 
         CampoTemperatura(
             valor = estado.temperaturaC,
-            alCambiar = viewModel::actualizarTemperatura
+            alCambiar = viewModel::actualizarTemperatura,
+            mensajeError = estado.erroresCampos["temperaturaC"]
         )
 
         CampoDecimal(
             etiqueta = "Humedad relativa (%)",
             valor = estado.humedadPct,
             alCambiar = viewModel::actualizarHumedad,
-            nota = "Rango permitido: 0 a 100 %."
+            nota = "Rango permitido: 0 a 100 %.",
+            error = estado.erroresCampos["humedadPct"] != null,
+            mensajeError = estado.erroresCampos["humedadPct"]
         )
 
         Text(
@@ -647,6 +971,8 @@ private fun PasoMediciones(
                 seleccionado = estado.elementoPrueba,
                 opciones = disponibles,
                 habilitado = disponibles.isNotEmpty() && !estado.guardando,
+                error = estado.erroresCampos["elementoPrueba"] != null,
+                mensajeError = estado.erroresCampos["elementoPrueba"],
                 alSeleccionar = { indice -> viewModel.actualizarElementoPrueba(disponibles[indice]) }
             )
             val guardados = elementosNecesarios.filter { elemento ->
@@ -706,7 +1032,7 @@ private fun PasoMediciones(
             )
         } else {
             Text(
-                "Ingresa valores numéricos mayores que cero cuando corresponda. Para tensión de prueba, usa un valor compatible con el equipo (por ejemplo 1.0, 2.5, 5.0 o 10.0 kV).",
+                "Ingresa valores numéricos válidos. Las magnitudes positivas deben ser mayores que cero; la posición TAP admite enteros negativos, cero y positivos. Para la tensión de prueba, sigue el procedimiento aplicable al equipo.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -725,7 +1051,7 @@ private fun PasoMediciones(
                     "T_PRUEBA" -> "Tensión de ensayo en kV. Ejemplos de referencia: 1.0, 2.5, 5.0 o 10.0; confirma siempre el procedimiento aplicable al equipo."
                     "LEC_1MIN" -> "Lectura tomada al minuto. Ejemplo: 500 MΩ."
                     "LEC_10MIN" -> "Lectura tomada a los diez minutos. Ejemplo: 1200 MΩ."
-                    "POS_TAP" -> "Posición del selector TAP como entero mayor o igual a 1."
+                    "POS_TAP" -> "Posición del selector TAP como número entero; por ahora solo se admite valores positivos."
                     "REL_TEORICA" -> "Relación teórica indicada para el transformador. Ejemplo: 10.0."
                     "REL_MEDIDA" -> "Relación medida durante la prueba. Ejemplo: 10.03."
                     "AT_BT", "AT_T", "BT_T" -> "Registra el valor medido en mΩ; no hay un umbral automático definido para esta prueba."
@@ -741,7 +1067,8 @@ private fun PasoMediciones(
                     valor = estado.mediciones[parametro.codigo].orEmpty(),
                     alCambiar = { valor -> viewModel.actualizarMedicion(parametro.codigo, valor) },
                     nota = notaParametro,
-                    error = estado.mensajeError != null && estado.mediciones[parametro.codigo].isNullOrBlank()
+                    error = estado.erroresCampos[parametro.codigo] != null,
+                    mensajeError = estado.erroresCampos[parametro.codigo]
                 )
             }
         }
@@ -792,6 +1119,7 @@ private fun Selector(
     opciones: List<String>,
     habilitado: Boolean = true,
     error: Boolean = false,
+    mensajeError: String? = null,
     alSeleccionar: (Int) -> Unit
 ) {
     var expandido by remember { mutableStateOf(false) }
@@ -811,8 +1139,10 @@ private fun Selector(
             readOnly = true,
             enabled = habilitado,
             label = { Text(etiqueta) },
-            isError = error,
-            supportingText = if (error) ({ Text("Revisa este campo") }) else null,
+            isError = error || mensajeError != null,
+            supportingText = if (error || mensajeError != null) ({
+                Text(mensajeError ?: "Revisa este campo")
+            }) else null,
             placeholder = {
                 Text(
                     if (opciones.isEmpty()) "Sin opciones disponibles"
@@ -850,14 +1180,17 @@ private fun CampoTexto(
     valor: String,
     alCambiar: (String) -> Unit,
     unaLinea: Boolean = true,
-    error: Boolean = false
+    error: Boolean = false,
+    mensajeError: String? = null
 ) {
     OutlinedTextField(
         value = valor,
         onValueChange = alCambiar,
         label = { Text(etiqueta) },
-        isError = error,
-        supportingText = if (error) ({ Text("Revisa este campo") }) else null,
+        isError = error || mensajeError != null,
+        supportingText = if (error || mensajeError != null) ({
+            Text(mensajeError ?: "Revisa este campo")
+        }) else null,
         modifier = Modifier.fillMaxWidth(),
         singleLine = unaLinea,
         minLines = if (unaLinea) 1 else 3
@@ -867,7 +1200,8 @@ private fun CampoTexto(
 @Composable
 private fun CampoTemperatura(
     valor: String,
-    alCambiar: (String) -> Unit
+    alCambiar: (String) -> Unit,
+    mensajeError: String? = null
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -879,6 +1213,8 @@ private fun CampoTemperatura(
                 value = valor,
                 onValueChange = alCambiar,
                 label = { Text("Temperatura ambiente (°C)") },
+                isError = mensajeError != null,
+                supportingText = if (mensajeError != null) ({ Text(mensajeError) }) else null,
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
@@ -909,15 +1245,18 @@ private fun CampoDecimal(
     valor: String,
     alCambiar: (String) -> Unit,
     nota: String? = null,
-    error: Boolean = false
+    error: Boolean = false,
+    mensajeError: String? = null
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         OutlinedTextField(
             value = valor,
             onValueChange = alCambiar,
             label = { Text(etiqueta) },
-            isError = error,
-            supportingText = if (error) ({ Text("Revisa este campo") }) else null,
+            isError = error || mensajeError != null,
+            supportingText = if (error || mensajeError != null) ({
+                Text(mensajeError ?: "Revisa este campo")
+            }) else null,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(

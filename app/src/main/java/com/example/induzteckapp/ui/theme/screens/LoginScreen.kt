@@ -1,5 +1,3 @@
-// induzteckApp/ui/theme/screens/LoginScreen.kt
-
 package com.example.induzteckapp.ui.theme.screens
 
 import androidx.compose.animation.AnimatedVisibility
@@ -180,9 +178,7 @@ private fun LoginContent(
     }
 }
 
-// -----------------------------------------------------
-// VISTA PREVIA (PREVIEW)
-// -----------------------------------------------------
+
 @Preview(showBackground = true)
 @Composable
 private fun LoginScreenPreview() {

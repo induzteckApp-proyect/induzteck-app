@@ -63,14 +63,14 @@ data class CrearProtocoloUiState(
     val cargando: Boolean = false,
     val guardando: Boolean = false,
     val mensajeError: String? = null,
-    val mensajeExito: String? = null
+    val mensajeExito: String? = null,
+    // Errores específicos para mostrarlos junto al campo correspondiente.
+    val erroresCampos: Map<String, String> = emptyMap()
 )
-
 
 
 /*
 package com.example.induzteckapp.model
-
 
 data class CrearProtocoloUiState(
     // Navegación
@@ -98,6 +98,7 @@ data class CrearProtocoloUiState(
     val elementosCompletados: Set<String> = emptySet(),
     val idProtocoloBorrador: Long? = null,
     val protocoloFinalizado: Boolean = false,
+    val resumenResultados: List<String> = emptyList(),
     val elementoPrueba: String = "",
     val releOpero: Boolean = true,
     val resultadoManual: Int = 1,
