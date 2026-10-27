@@ -33,6 +33,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import com.example.induzteckapp.ui.theme.theme.ResultadoAprobadoColor
+import com.example.induzteckapp.ui.theme.theme.ResultadoObservadoColor
+import com.example.induzteckapp.ui.theme.theme.ResultadoRechazadoColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -70,7 +73,9 @@ fun ListaClientesScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
@@ -253,9 +258,9 @@ fun EquipoCardItem(
 @Composable
 fun ResultadoBadge(resultado: String) {
     val (color, text) = when (resultado) {
-        "Aprobado" -> Color(0xFF2E7D32) to "Aprobado"
-        "Observado" -> Color(0xFFED6C02) to "Observado"
-        else -> Color(0xFFD32F2F) to "Rechazado"
+        "Aprobado" -> ResultadoAprobadoColor to "Aprobado"
+        "Observado" -> ResultadoObservadoColor to "Observado"
+        else -> ResultadoRechazadoColor to "Rechazado"
     }
 
     Surface(

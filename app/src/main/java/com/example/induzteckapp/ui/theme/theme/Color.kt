@@ -59,3 +59,8 @@ val InformacionFondoOscuro = Color(0xFF193653)
 // Elementos deshabilitados
 val GrisDeshabilitado = Color(0xFF9AA6B5)
 val GrisDeshabilitadoOscuro = Color(0xFF65758A)
+
+// Colores semánticos para resultados (Aprobado/Formalizado, Observado, Rechazado)
+val ResultadoAprobadoColor = Color(0xFF2E7D32)
+val ResultadoObservadoColor = Color(0xFFED6C02)
+val ResultadoRechazadoColor = Color(0xFFD32F2F)

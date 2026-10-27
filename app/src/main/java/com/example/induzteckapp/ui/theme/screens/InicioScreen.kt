@@ -129,7 +129,7 @@ fun InicioScreen(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     ) {
-                        Text(text = "+ Nuevo Protocolo")
+                        Text(text = "Gestionar Protocolos")
                     }
                 }
             },

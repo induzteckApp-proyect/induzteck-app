@@ -361,7 +361,7 @@ fun CrearProtocoloScreen(
             }
 
             TextButton(onClick = onIrAHistorial, modifier = Modifier.fillMaxWidth()) {
-                Text("Ver Historial")
+                Text("Ver y Gestionar Protocolos")
             }
 
             TarjetaSeccion(titulo = "Progreso del protocolo") {
