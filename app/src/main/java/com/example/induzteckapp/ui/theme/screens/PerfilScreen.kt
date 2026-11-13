@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -71,29 +72,39 @@ fun PerfilScreen(
     val apellido by viewModel.apellido.collectAsState()
     val giro by viewModel.giro.collectAsState()
     val contactoNombre by viewModel.contactoNombre.collectAsState()
+    val contactoCargo by viewModel.contactoCargo.collectAsState()
     val telefono by viewModel.telefono.collectAsState()
     val avatarBytes by viewModel.avatarBytes.collectAsState()
     val mensaje by viewModel.mensajeState.collectAsState()
+    val errorNombre by viewModel.errorNombre.collectAsState()
+    val errorApellido by viewModel.errorApellido.collectAsState()
+    val errorTelefono by viewModel.errorTelefono.collectAsState()
+    val errorContacto by viewModel.errorContacto.collectAsState()
+    val errorGiro by viewModel.errorGiro.collectAsState()
+    val errorContactoCargo by viewModel.errorContactoCargo.collectAsState()
 
+    var claveActual by remember { mutableStateOf("") }
+    var claveNueva by remember { mutableStateOf("") }
+    var confirmarClave by remember { mutableStateOf("") }
     var mostrarOpcionesAvatar by remember { mutableStateOf(false) }
 
-    // Launcher para seleccionar foto desde la Galería nativa (PickVisualMedia)
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        // CA-8.2: Si selecciona imagen válida, procesa Bitmap, convierte a JPEG achicado y guarda en SQLite como BLOB.
-        // CA-8.3: Si cancela (uri == null), mantiene la previa sin error.
+
+
         if (uri != null) {
             viewModel.onImagenSeleccionada(context, uri)
         }
     }
 
-    // Launcher para tomar foto desde la Cámara nativa (TakePicturePreview -> entrega un Bitmap directo)
+
     val lanzadorCamara = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { foto: Bitmap? ->
-        // CA-8.2: Si captura foto con éxito, convierte a JPEG achicado de 400px y guarda en SQLite como BLOB.
-        // CA-8.3: Si cancela la toma (foto == null), mantiene la imagen previa.
+
+
         if (foto != null) {
             viewModel.onFotoCapturada(foto)
         }
@@ -103,11 +114,11 @@ fun PerfilScreen(
         try {
             lanzadorCamara.launch(null)
         } catch (_: ActivityNotFoundException) {
-            // Maneja dispositivos sin app de cámara de forma segura
+
         }
     }
 
-    // Launcher para solicitar permiso nativo de Cámara si no está otorgado
+
     val permisoCamaraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { concedido ->
@@ -162,7 +173,7 @@ fun PerfilScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Encabezado con Avatar Circular BLOB (CA-8.2) y Botón para cambiar foto
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -177,6 +188,7 @@ fun PerfilScreen(
                 ) {
                     AvatarCircular(
                         avatarBytes = avatarBytes,
+                        avatarUrl = usuario?.avatarUrl,
                         descripcion = "Foto de perfil de ${usuario?.nombre ?: "usuario"}"
                     )
 
@@ -187,7 +199,7 @@ fun PerfilScreen(
                 }
             }
 
-            // Datos de Solo Lectura (RUT, Correo, Rol) - CA-8.1
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -234,7 +246,7 @@ fun PerfilScreen(
                 }
             }
 
-            // Datos Editables (Nombre, Apellidos, Giro, Contacto, Teléfono)
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -257,7 +269,9 @@ fun PerfilScreen(
                         onValueChange = { viewModel.onNombreChanged(it) },
                         label = { Text("Nombre / Razón Social") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        isError = errorNombre != null,
+                        supportingText = errorNombre?.let { { Text(it) } }
                     )
 
                     OutlinedTextField(
@@ -265,23 +279,39 @@ fun PerfilScreen(
                         onValueChange = { viewModel.onApellidoChanged(it) },
                         label = { Text("Apellidos (Opcional)") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        isError = errorApellido != null,
+                        supportingText = errorApellido?.let { { Text(it) } }
                     )
 
                     OutlinedTextField(
                         value = giro,
                         onValueChange = { viewModel.onGiroChanged(it) },
-                        label = { Text("Giro / Rubro (Opcional)") },
+                        label = { Text("Giro / Rubro") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        isError = errorGiro != null,
+                        supportingText = errorGiro?.let { { Text(it) } }
                     )
 
                     OutlinedTextField(
                         value = contactoNombre,
                         onValueChange = { viewModel.onContactoNombreChanged(it) },
-                        label = { Text("Nombre de Contacto (Opcional)") },
+                        label = { Text("Nombre de Contacto") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        isError = errorContacto != null,
+                        supportingText = errorContacto?.let { { Text(it) } }
+                    )
+
+                    OutlinedTextField(
+                        value = contactoCargo,
+                        onValueChange = { viewModel.onContactoCargoChanged(it) },
+                        label = { Text("Cargo del contacto") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        isError = errorContactoCargo != null,
+                        supportingText = errorContactoCargo?.let { { Text(it) } }
                     )
 
                     OutlinedTextField(
@@ -289,7 +319,9 @@ fun PerfilScreen(
                         onValueChange = { viewModel.onTelefonoChanged(it) },
                         label = { Text("Teléfono de Contacto") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        isError = errorTelefono != null,
+                        supportingText = errorTelefono?.let { { Text(it) } }
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -301,10 +333,47 @@ fun PerfilScreen(
                     )
                 }
             }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Seguridad de la cuenta", style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    HorizontalDivider()
+                    OutlinedTextField(
+                        value = claveActual, onValueChange = { claveActual = it },
+                        label = { Text("Contraseña actual") }, modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = PasswordVisualTransformation(), singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = claveNueva, onValueChange = { claveNueva = it },
+                        label = { Text("Nueva contraseña") }, modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = PasswordVisualTransformation(), singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = confirmarClave, onValueChange = { confirmarClave = it },
+                        label = { Text("Confirmar nueva contraseña") }, modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = PasswordVisualTransformation(), singleLine = true
+                    )
+                    Text("Mínimo 8 caracteres, mayúscula, minúscula, número y símbolo.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    BotonSecundario(
+                        texto = "Cambiar contraseña",
+                        onClick = {
+                            viewModel.cambiarContrasena(claveActual, claveNueva, confirmarClave)
+                            claveActual = ""; claveNueva = ""; confirmarClave = ""
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
         }
     }
 
-    // Diálogo de Selección Nativa: Galería o Cámara (CA-8.2 / CA-8.3)
+
     if (mostrarOpcionesAvatar) {
         AlertDialog(
             onDismissRequest = { mostrarOpcionesAvatar = false },

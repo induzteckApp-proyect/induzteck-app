@@ -1,12 +1,11 @@
-// com.example.induzteckapp/model/InicioUiState.kt
 package com.example.induzteckapp.model
 
-data class InicioUiState (
+data class InicioUiState(
     val usuario: Usuario? = null,
     val esTecnico: Boolean = false,
     val esCliente: Boolean = false,
+    val esAdmin: Boolean = false,
     val tituloSaludo: String = "",
     val descripcionBienvenida: String = "",
     val mostrarBotonCrearProtocolo: Boolean = false
-
 )

@@ -1,5 +1,3 @@
-// com.example.induzteckapp/navigation/AppNavegacion.kt
-
 package com.example.induzteckapp.navigation
 
 import androidx.compose.runtime.Composable
@@ -8,26 +6,12 @@ import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.induzteckapp.ui.theme.screens.FormularioScreen
-import com.example.induzteckapp.ui.theme.screens.InicioScreen
-import com.example.induzteckapp.ui.theme.screens.LoginScreen
-import com.example.induzteckapp.ui.theme.screens.RecuperarContrasenaScreen
-import com.example.induzteckapp.ui.theme.screens.CrearProtocoloScreen
-import com.example.induzteckapp.ui.theme.screens.ListaClientesScreen
-import com.example.induzteckapp.ui.theme.screens.ListaInstalacionesScreen
-import com.example.induzteckapp.ui.theme.screens.ListaBorradoresScreen
-import com.example.induzteckapp.ui.theme.screens.HistorialProtocolosScreen
-import com.example.induzteckapp.ui.theme.screens.DetalleRespaldoDigitalScreen
-import com.example.induzteckapp.ui.theme.screens.PerfilScreen
+import com.example.induzteckapp.ui.theme.screens.*
+
 @Composable
 fun AppNavegacion() {
     val navController = rememberNavController()
-
-    NavHost(
-        navController = navController,
-        startDestination = Ruta.Login.ruta
-    ) {
-
+    NavHost(navController = navController, startDestination = Ruta.Login.ruta) {
         composable(Ruta.Login.ruta) {
             LoginScreen(
                 onLoginExitoso = {
@@ -36,24 +20,16 @@ fun AppNavegacion() {
                         launchSingleTop = true
                     }
                 },
-                onIrARegistro = { navController.navigate(Ruta.Registro.ruta) },
-                onIrARecuperar = { navController.navigate(Ruta.RecuperarContrasena.ruta) }
+                onIrARecuperar = { navController.navigate(Ruta.RecuperarContrasena.ruta) },
+                onIrAActivar = { navController.navigate(Ruta.ActivarCuenta.ruta) }
             )
         }
-
-        composable(Ruta.Registro.ruta) {
-            FormularioScreen(
-                onRegistroExitoso = { navController.popBackStack() },
-                onVolver = { navController.popBackStack() }
-            )
+        composable(Ruta.ActivarCuenta.ruta) {
+            ActivarCuentaScreen(onVolver = { navController.popBackStack() })
         }
-
         composable(Ruta.RecuperarContrasena.ruta) {
-            RecuperarContrasenaScreen(
-                onVolverLogin = { navController.popBackStack() }
-            )
+            RecuperarContrasenaScreen(onVolverLogin = { navController.popBackStack() })
         }
-
         composable(Ruta.Inicio.ruta) {
             InicioScreen(
                 onCerrarSesion = {
@@ -62,29 +38,19 @@ fun AppNavegacion() {
                         launchSingleTop = true
                     }
                 },
-                onIrANuevoProtocolo = {
-                    navController.navigate(Ruta.CrearProtocolo.nueva())
-                },
-                onIrAListaClientes = {
-                    navController.navigate(Ruta.ListaClientes.ruta)
-                },
-                onIrAListaInstalaciones = {
-                    navController.navigate(Ruta.ListaInstalaciones.ruta)
-                },
-                onIrAPerfil = {
-                    navController.navigate(Ruta.Perfil.ruta)
-                }
+                onIrANuevoProtocolo = { navController.navigate(Ruta.CrearProtocolo.nueva()) },
+                onIrAListaClientes = { navController.navigate(Ruta.ListaClientes.ruta) },
+                onIrAListaInstalaciones = { navController.navigate(Ruta.ListaInstalaciones.ruta) },
+                onIrAAdministrarUsuarios = { navController.navigate(Ruta.AdminUsuarios.ruta) },
+                onIrAPerfil = { navController.navigate(Ruta.Perfil.ruta) }
             )
         }
-
+        composable(Ruta.AdminUsuarios.ruta) {
+            AdminUsuariosScreen(onVolver = { navController.popBackStack() })
+        }
         composable(
             route = Ruta.CrearProtocolo.ruta,
-            arguments = listOf(
-                navArgument("borradorId") {
-                    type = NavType.LongType
-                    defaultValue = -1L
-                }
-            )
+            arguments = listOf(navArgument("borradorId") { type = NavType.LongType; defaultValue = -1L })
         ) { entrada ->
             CrearProtocoloScreen(
                 onVolver = { navController.popBackStack() },
@@ -93,196 +59,38 @@ fun AppNavegacion() {
                 idBorrador = entrada.arguments?.getLong("borradorId") ?: -1L
             )
         }
-
         composable(Ruta.HistorialProtocolos.ruta) {
             HistorialProtocolosScreen(onVolver = { navController.popBackStack() })
         }
-
         composable(Ruta.ListaBorradores.ruta) {
             ListaBorradoresScreen(
                 onVolver = { navController.popBackStack() },
-                onRecuperar = { id ->
-                    navController.navigate(Ruta.CrearProtocolo.recuperar(id))
-                }
+                onRecuperar = { id -> navController.navigate(Ruta.CrearProtocolo.recuperar(id)) }
             )
         }
-
         composable(Ruta.ListaClientes.ruta) {
             ListaClientesScreen(
                 onVolver = { navController.popBackStack() },
-                onProtocoloClick = { idProtocolo ->
-                    navController.navigate(Ruta.DetalleRespaldo.construir(idProtocolo))
-                },
-                onEditarProtocolo = { idProtocolo ->
-                    navController.navigate(Ruta.EditarProtocolo.construir(idProtocolo))
-                }
+                onProtocoloClick = { id -> navController.navigate(Ruta.DetalleRespaldo.construir(id)) }
             )
         }
-
-        composable(
-            route = Ruta.EditarProtocolo.ruta,
-            arguments = listOf(navArgument("idProtocolo") { type = NavType.IntType })
-        ) { entrada ->
-            CrearProtocoloScreen(
-                onVolver = { navController.popBackStack() },
-                onIrABorradores = { navController.navigate(Ruta.ListaBorradores.ruta) },
-                onIrAHistorial = { navController.popBackStack() },
-                idEdicion = entrada.arguments?.getInt("idProtocolo") ?: -1
-            )
-        }
-
-        // -----------------------------------------------------
-        // VISTA DE INSTALACIONES (Exclusiva Cliente HU-03)
-        // -----------------------------------------------------
         composable(Ruta.ListaInstalaciones.ruta) {
             ListaInstalacionesScreen(
                 onVolver = { navController.popBackStack() },
-                onProtocoloClick = { idProtocolo ->
-                    navController.navigate(Ruta.DetalleRespaldo.construir(idProtocolo))
-                }
+                onProtocoloClick = { id -> navController.navigate(Ruta.DetalleRespaldo.construir(id)) }
             )
         }
-
-        // -----------------------------------------------------
-        // PANTALLA DETALLE DEL RESPALDO DIGITAL (Solo Lectura)
-        // -----------------------------------------------------
         composable(
             route = Ruta.DetalleRespaldo.ruta,
             arguments = listOf(navArgument("idProtocolo") { type = NavType.IntType })
-        ) { backStackEntry ->
-            val idProtocolo = backStackEntry.arguments?.getInt("idProtocolo") ?: -1
+        ) { entry ->
             DetalleRespaldoDigitalScreen(
-                idProtocolo = idProtocolo,
+                idProtocolo = entry.arguments?.getInt("idProtocolo") ?: -1,
                 onVolver = { navController.popBackStack() }
             )
         }
-
         composable(Ruta.Perfil.ruta) {
-            PerfilScreen(
-                onVolver = { navController.popBackStack() }
-            )
+            PerfilScreen(onVolver = { navController.popBackStack() })
         }
-
-
     }
 }
-
-
-
-/*
-// com.example.induzteckapp/navigation/AppNavegacion.kt
-
-package com.example.induzteckapp.navigation
-
-import androidx.compose.runtime.Composable
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
-import com.example.induzteckapp.ui.theme.screens.FormularioScreen
-import com.example.induzteckapp.ui.theme.screens.InicioScreen
-import com.example.induzteckapp.ui.theme.screens.LoginScreen
-import com.example.induzteckapp.ui.theme.screens.RecuperarContrasenaScreen
-import com.example.induzteckapp.ui.theme.screens.CrearProtocoloScreen
-import com.example.induzteckapp.ui.theme.screens.ListaClientesScreen
-import com.example.induzteckapp.ui.theme.screens.ListaInstalacionesScreen
-import com.example.induzteckapp.ui.theme.screens.DetalleRespaldoDigitalScreen
-@Composable
-fun AppNavegacion() {
-    val navController = rememberNavController()
-
-    NavHost(
-        navController = navController,
-        startDestination = Ruta.Login.ruta
-    ) {
-
-        composable(Ruta.Login.ruta) {
-            LoginScreen(
-                onLoginExitoso = {
-                    navController.navigate(Ruta.Inicio.ruta) {
-                        popUpTo(Ruta.Login.ruta) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-                onIrARegistro = { navController.navigate(Ruta.Registro.ruta) },
-                onIrARecuperar = { navController.navigate(Ruta.RecuperarContrasena.ruta) }
-            )
-        }
-
-        composable(Ruta.Registro.ruta) {
-            FormularioScreen(
-                onRegistroExitoso = { navController.popBackStack() },
-                onVolver = { navController.popBackStack() }
-            )
-        }
-
-        composable(Ruta.RecuperarContrasena.ruta) {
-            RecuperarContrasenaScreen(
-                onVolverLogin = { navController.popBackStack() }
-            )
-        }
-
-        composable(Ruta.Inicio.ruta) {
-            InicioScreen(
-                onCerrarSesion = {
-                    navController.navigate(Ruta.Login.ruta) {
-                        popUpTo(Ruta.Inicio.ruta) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-                onIrANuevoProtocolo = {
-                    navController.navigate(Ruta.CrearProtocolo.ruta)
-                },
-                onIrAListaClientes = {
-                    navController.navigate(Ruta.ListaClientes.ruta)
-                },
-                onIrAListaInstalaciones = {
-                    navController.navigate(Ruta.ListaInstalaciones.ruta) // <--- ¡FALTABA CONECTAR ESTA RUTA!
-                }
-            )
-        }
-
-        composable(Ruta.CrearProtocolo.ruta) {
-            CrearProtocoloScreen(
-                onVolver = { navController.popBackStack() }
-            )
-        }
-
-        composable(Ruta.ListaClientes.ruta) {
-            ListaClientesScreen(
-                onVolver = { navController.popBackStack() }
-            )
-        }
-
-        // -----------------------------------------------------
-        // VISTA DE INSTALACIONES (Exclusiva Cliente)
-        // -----------------------------------------------------
-        composable(Ruta.ListaInstalaciones.ruta) {
-            ListaInstalacionesScreen(
-                onVolver = { navController.popBackStack() },
-                onProtocoloClick = { idProtocolo ->
-                    navController.navigate(Ruta.DetalleRespaldo.construir(idProtocolo))
-                }
-            )
-        }
-
-        composable(
-            route = Ruta.DetalleRespaldo.ruta,
-            arguments = listOf(navArgument("idProtocolo") { type = NavType.IntType })
-        ) { backStackEntry ->
-            val idProtocolo = backStackEntry.arguments?.getInt("idProtocolo")
-            if (idProtocolo != null) {
-                DetalleRespaldoDigitalScreen(
-                    idProtocolo = idProtocolo,
-                    onVolver = { navController.popBackStack() }
-                )
-            } else {
-                navController.popBackStack()
-            }
-        }
-
-    }
-}
-
-*/

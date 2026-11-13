@@ -1,5 +1,3 @@
-// CrearProtocoloViewModel
-
 package com.example.induzteckapp.viewmodel
 
 import android.app.Application
@@ -35,8 +33,8 @@ class CrearProtocoloViewModel(
 
     private val dbHelper = InduztekDbHelper(application)
 
-    // Solo se consulta la identidad de la sesión iniciada.
-    // Las preferencias no almacenan el protocolo ni sus formularios.
+
+
     private val preferencias = InduztekPreferencias(application)
 
     private val _uiState = MutableStateFlow(CrearProtocoloUiState())
@@ -77,9 +75,9 @@ class CrearProtocoloViewModel(
         }
     }
 
-    // ---------------------------------------------------------
-    // PASO 1: CLIENTE, INSTALACIÓN, EQUIPO Y PRUEBA
-    // ---------------------------------------------------------
+
+
+
 
     fun seleccionarCliente(cliente: ClienteProtocolo) {
         _uiState.update {
@@ -939,8 +937,8 @@ class CrearProtocoloViewModel(
         val esAislacion = "aislación" in nombrePrueba || "aislacion" in nombrePrueba
         val esInterruptorOCelda = "interruptor" in tipoEquipo || "celda" in tipoEquipo
 
-        // RN-05: para interruptores y celdas MT se registra la lectura de aislación a 1 min.
-        // No se modifica el catálogo de SQLite; solo se adapta el formulario a este equipo.
+
+
         return if (esAislacion && esInterruptorOCelda) {
             parametros.filterNot { it.codigo == "LEC_10MIN" }
         } else {
@@ -1077,6 +1075,27 @@ class CrearProtocoloViewModel(
                 }.map { it.idTipoPrueba }.toSet()
                 val finalizarAlRecuperar = tiposSeleccionados.isNotEmpty() &&
                         tiposSeleccionados.all { it in completadasReales }
+                val pruebasPendientes = compatibles.filter {
+                    it.idTipoPrueba in tiposSeleccionados && it.idTipoPrueba !in completadasReales
+                }
+                // Si solo se guardaron contexto y condiciones ambientales, se retoma en el paso 2.
+                // Si ya existen pruebas completas, se continúa directamente con las mediciones pendientes.
+                val pasoRecuperado = when {
+                    finalizarAlRecuperar -> 3
+                    completadasReales.isNotEmpty() -> 3
+                    pruebasPendientes.isNotEmpty() -> 2
+                    else -> 1
+                }
+                val primeraPruebaPendiente = if (pasoRecuperado == 3) pruebasPendientes.firstOrNull() else null
+                val parametrosRecuperados = if (primeraPruebaPendiente != null) {
+                    withContext(Dispatchers.IO) {
+                        parametrosParaEquipo(
+                            primeraPruebaPendiente,
+                            equipo,
+                            dbHelper.obtenerParametrosPorTipoPrueba(primeraPruebaPendiente.idTipoPrueba)
+                        )
+                    }
+                } else emptyList()
                 val resultadoRecuperado = if (finalizarAlRecuperar) {
                     withContext(Dispatchers.IO) {
                         dbHelper.finalizarBorradorProtocolo(idProtocolo)
@@ -1090,7 +1109,7 @@ class CrearProtocoloViewModel(
                 val tipos = withContext(Dispatchers.IO) { dbHelper.obtenerTiposEquipo() }
                 _uiState.update {
                     it.copy(
-                        pasoActual = if (finalizarAlRecuperar) 3 else 1,
+                        pasoActual = pasoRecuperado,
                         clientes = clientesActuales,
                         regiones = regiones,
                         comunas = comunas,
@@ -1101,10 +1120,8 @@ class CrearProtocoloViewModel(
                         equipos = equipos,
                         equipoSeleccionado = equipo,
                         pruebasCompatibles = compatibles,
-                        pruebasSeleccionadas = compatibles.filter {
-                            it.idTipoPrueba in tiposSeleccionados && it.idTipoPrueba !in completadasReales
-                        },
-                        pruebaSeleccionada = null,
+                        pruebasSeleccionadas = pruebasPendientes,
+                        pruebaSeleccionada = primeraPruebaPendiente,
                         indicePruebaActual = 0,
                         pruebasCompletadas = completadasReales,
                         elementosCompletados = elementosCargados,
@@ -1113,8 +1130,10 @@ class CrearProtocoloViewModel(
                         resumenResultados = resultadoRecuperado?.second.orEmpty(),
                         temperaturaC = detalle.temperaturaC.toString(),
                         humedadPct = detalle.humedadPct.toString(),
-                        parametrosPrueba = emptyList(),
+                        parametrosPrueba = parametrosRecuperados,
                         mediciones = emptyMap(),
+                        elementoPrueba = "",
+                        erroresCampos = emptyMap(),
                         cargando = false,
                         mensajeExito = if (finalizarAlRecuperar) {
                             "El borrador ya tenía todas las pruebas completas. Se confirmó su estado REGISTRADO_TERRENO. Resultado global: ${resultadoRecuperado?.first?.let { nombreResultado(it) } ?: "Sin resultado"}."
@@ -1125,28 +1144,6 @@ class CrearProtocoloViewModel(
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(cargando = false, mensajeError = e.message ?: "No fue posible recuperar el borrador.") }
-            }
-        }
-    }
-
-    fun cargarEdicion(idProtocolo: Int) {
-        val userId = preferencias.leerSesion()
-        if (userId <= 0L) {
-            mostrarError("Inicia sesión nuevamente para editar el protocolo.")
-            return
-        }
-        viewModelScope.launch {
-            _uiState.update { it.copy(modoEdicion = true, cargando = true, mensajeError = null) }
-            try {
-                withContext(Dispatchers.IO) {
-                    if (!dbHelper.obtenerDetalleProtocoloParaEdicion(idProtocolo.toLong(), userId)) {
-                        throw IllegalArgumentException("No se encontró el protocolo o no tienes permisos para editarlo.")
-                    }
-                    dbHelper.prepararProtocoloParaEdicion(idProtocolo.toLong(), userId)
-                }
-                cargarBorrador(idProtocolo.toLong())
-            } catch (e: Exception) {
-                _uiState.update { it.copy(cargando = false, mensajeError = e.message ?: "No fue posible preparar la edición.") }
             }
         }
     }
@@ -1207,49 +1204,51 @@ class CrearProtocoloViewModel(
         return limpio.toDoubleOrNull()?.takeIf { it.isFinite() }
     }
 
-    fun guardarYMarcarObservadoOnExit(onCompletado: () -> Unit) {
+    fun guardarBorradorAlSalir(onCompletado: () -> Unit) {
         val estado = _uiState.value
-        if (estado.protocoloFinalizado) {
+        if (estado.protocoloFinalizado || estado.idProtocoloBorrador != null) {
             onCompletado()
             return
         }
-        val idBorrador = estado.idProtocoloBorrador
-        val userId = preferencias.leerSesion()
 
-        if (idBorrador != null && userId > 0L) {
-            viewModelScope.launch(Dispatchers.IO) {
-                try {
-                    dbHelper.guardarYMarcarObservado(idBorrador, userId)
-                } catch (_: Exception) {}
-                withContext(Dispatchers.Main) {
-                    onCompletado()
-                }
-            }
-        } else {
-            val equipo = estado.equipoSeleccionado
-            val temp = decimalValido(estado.temperaturaC) ?: 20.0
-            val hum = decimalValido(estado.humedadPct) ?: 45.0
-            if (equipo != null && userId > 0L) {
-                viewModelScope.launch(Dispatchers.IO) {
-                    try {
-                        val fechaHora = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-                        val nuevoId = dbHelper.guardarCabeceraBorrador(
-                            null, equipo.idEquipo, userId, fechaHora, temp, hum
-                        )
-                        if (estado.pruebasSeleccionadas.isNotEmpty()) {
-                            dbHelper.guardarPruebasSeleccionadasBorrador(
-                                nuevoId, estado.pruebasSeleccionadas.map { it.idTipoPrueba }
-                            )
-                        }
-                        dbHelper.guardarYMarcarObservado(nuevoId, userId)
-                    } catch (_: Exception) {}
-                    withContext(Dispatchers.Main) {
-                        onCompletado()
-                    }
-                }
-            } else {
+        // Si el autoguardado está en curso, espera a que termine antes de salir.
+        if (creandoBorrador) {
+            viewModelScope.launch {
+                while (creandoBorrador) kotlinx.coroutines.delay(40)
                 onCompletado()
             }
+            return
+        }
+
+        val equipo = estado.equipoSeleccionado
+        val temperatura = decimalValido(estado.temperaturaC)
+        val humedad = decimalValido(estado.humedadPct)
+        val userId = preferencias.leerSesion()
+
+        // No se crea un borrador vacío si el usuario abandona antes de completar
+        // el contexto y las condiciones ambientales.
+        if (equipo == null || userId <= 0L || estado.pruebasSeleccionadas.isEmpty() ||
+            temperatura == null || humedad == null ||
+            temperatura !in -10.0..60.0 || humedad !in 0.0..100.0) {
+            onCompletado()
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val fechaHora = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                    val nuevoId = dbHelper.guardarCabeceraBorrador(
+                        null, equipo.idEquipo, userId, fechaHora, temperatura, humedad
+                    )
+                    dbHelper.guardarPruebasSeleccionadasBorrador(
+                        nuevoId, estado.pruebasSeleccionadas.map { it.idTipoPrueba }
+                    )
+                }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(mensajeError = "No fue posible guardar el borrador antes de salir.") }
+            }
+            onCompletado()
         }
     }
 

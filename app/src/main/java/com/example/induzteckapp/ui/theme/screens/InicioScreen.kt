@@ -1,5 +1,3 @@
-// com.example.induzteckapp/ui/theme/screens/InicioScreen.kt
-
 package com.example.induzteckapp.ui.theme.screens
 
 import androidx.compose.foundation.layout.*
@@ -28,7 +26,8 @@ fun InicioScreen(
     onCerrarSesion: () -> Unit,
     onIrANuevoProtocolo: () -> Unit = {},
     onIrAListaClientes: () -> Unit = {},
-    onIrAListaInstalaciones: () -> Unit = {}, // Callback para la vista del cliente
+    onIrAListaInstalaciones: () -> Unit = {},
+    onIrAAdministrarUsuarios: () -> Unit = {},
     onIrAPerfil: () -> Unit = {},
     viewModel: InicioViewModel = viewModel()
 ) {
@@ -121,7 +120,7 @@ fun InicioScreen(
                     )
                 )
             },
-            // Botón flotante exclusivo para que el Técnico registre protocolos rápidamente
+
             floatingActionButton = {
                 if (uiState.mostrarBotonCrearProtocolo) {
                     ExtendedFloatingActionButton(
@@ -164,7 +163,7 @@ fun InicioScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Secciones unificadas con la paleta de colores y tarjetas de FormularioScreen
+
                     if (uiState.esTecnico) {
                         TarjetaSeccion(titulo = "Gestión de Terreno") {
                             Text(
@@ -178,6 +177,20 @@ fun InicioScreen(
                             BotonPrincipal(
                                 texto = "Ver Clientes",
                                 onClick = onIrAListaClientes,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    } else if (uiState.esAdmin) {
+                        TarjetaSeccion(titulo = "Administración de cuentas") {
+                            Text(
+                                text = "Crea cuentas de clientes, técnicos e incluso otros administradores. Cada persona activará su cuenta y definirá su propia contraseña.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            BotonPrincipal(
+                                texto = "Administrar usuarios",
+                                onClick = onIrAAdministrarUsuarios,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -204,9 +217,9 @@ fun InicioScreen(
     }
 }
 
-// -----------------------------------------------------
-// VISTA PREVIA (PREVIEW)
-// -----------------------------------------------------
+
+
+
 @Preview(showBackground = true)
 @Composable
 private fun InicioScreenPreview() {

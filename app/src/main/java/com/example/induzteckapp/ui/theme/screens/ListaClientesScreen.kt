@@ -2,63 +2,98 @@ package com.example.induzteckapp.ui.theme.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.induzteckapp.R
+import com.example.induzteckapp.model.*
 import com.example.induzteckapp.ui.theme.theme.ResultadoAprobadoColor
 import com.example.induzteckapp.ui.theme.theme.ResultadoObservadoColor
 import com.example.induzteckapp.ui.theme.theme.ResultadoRechazadoColor
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.induzteckapp.R
-import com.example.induzteckapp.model.ClienteConsulta
-import com.example.induzteckapp.model.EquipoConsulta
-import com.example.induzteckapp.model.InstalacionConsulta
-import com.example.induzteckapp.model.ProtocoloResumen
 import com.example.induzteckapp.viewmodel.ListaClientesViewModel
-
-import androidx.compose.ui.tooling.preview.Preview
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListaClientesScreen(
     onVolver: () -> Unit = {},
     onProtocoloClick: (Int) -> Unit = {},
-    onEditarProtocolo: (Int) -> Unit = {},
     viewModel: ListaClientesViewModel = viewModel()
 ) {
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val clientes by viewModel.clientesState.collectAsState()
-    val esTecnico by viewModel.esTecnico.collectAsState()
+    val busqueda by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val clientes by viewModel.clientesState.collectAsStateWithLifecycle()
+    val esTecnico by viewModel.esTecnico.collectAsStateWithLifecycle()
+    val guardando by viewModel.guardandoEstado.collectAsStateWithLifecycle()
+    val mensaje by viewModel.mensajeEstado.collectAsStateWithLifecycle()
+
+    var protocoloAccion by remember { mutableStateOf<ProtocoloResumen?>(null) }
+    var equipoAccion by remember { mutableIntStateOf(-1) }
+    var estadoDestino by remember { mutableStateOf("") }
+    var motivo by remember { mutableStateOf("") }
+    var mostrarMotivoError by remember { mutableStateOf(false) }
+
+    if (protocoloAccion != null) {
+        val opciones = accionesDisponiblesCliente(protocoloAccion!!.estado)
+        AlertDialog(
+            onDismissRequest = { protocoloAccion = null; estadoDestino = ""; motivo = "" },
+            title = { Text("Actualizar estado del protocolo") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Protocolo ${protocoloAccion!!.numeroProtocolo}")
+                    if (estadoDestino.isBlank()) {
+                        Text("Selecciona el nuevo estado:")
+                        opciones.forEach { (codigo, etiqueta) ->
+                            TextButton(onClick = { estadoDestino = codigo }) { Text(etiqueta) }
+                        }
+                        if (opciones.isEmpty()) Text("No hay cambios de estado disponibles.")
+                    } else {
+                        Text("Nuevo estado: ${nombreEstadoCliente(estadoDestino)}")
+                        if (estadoDestino == "OBSERVADO" || estadoDestino == "ANULADO") {
+                            OutlinedTextField(
+                                value = motivo, onValueChange = { motivo = it },
+                                label = { Text("Motivo obligatorio") }, minLines = 2,
+                                isError = mostrarMotivoError && motivo.isBlank(),
+                                supportingText = if (mostrarMotivoError && motivo.isBlank()) {
+                                    { Text("Indica el motivo para continuar.") }
+                                } else null
+                            )
+                        } else Text("¿Confirmas el cambio de estado?")
+                    }
+                }
+            },
+            confirmButton = {
+                if (estadoDestino.isNotBlank()) TextButton(
+                    enabled = !guardando,
+                    onClick = {
+                        mostrarMotivoError = true
+                        if ((estadoDestino !in listOf("OBSERVADO", "ANULADO")) || motivo.isNotBlank()) {
+                            protocoloAccion?.let {
+                                viewModel.cambiarEstadoProtocolo(
+                                    it.idProtocolo, equipoAccion, estadoDestino, motivo.trim()
+                                )
+                            }
+                            protocoloAccion = null; estadoDestino = ""; motivo = ""; mostrarMotivoError = false
+                        }
+                    }
+                ) { Text(if (guardando) "Guardando…" else "Confirmar") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    if (estadoDestino.isNotBlank()) estadoDestino = ""
+                    else protocoloAccion = null
+                    motivo = ""; mostrarMotivoError = false
+                }) { Text(if (estadoDestino.isNotBlank()) "Atrás" else "Cancelar") }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -66,10 +101,7 @@ fun ListaClientesScreen(
                 title = { Text("Consulta de Clientes y Equipos") },
                 navigationIcon = {
                     IconButton(onClick = onVolver) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_volver),
-                            contentDescription = "Volver"
-                        )
+                        Icon(painterResource(R.drawable.ic_volver), contentDescription = "Volver")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -80,35 +112,33 @@ fun ListaClientesScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-        ) {
-            // CA-2.1: Barra de búsqueda en tiempo real para TAG, Cliente o Instalación
+        Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                value = busqueda, onValueChange = viewModel::onSearchQueryChanged,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Buscar por Cliente, TAG (ej: TR-01) o Instalación...") },
+                placeholder = { Text("Buscar por Cliente, RUT, TAG o Instalación…") },
                 singleLine = true
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Lista desplegable de clientes
+            mensaje?.let {
+                Text(it, color = if (it.contains("correctamente")) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp))
+            }
+            Spacer(Modifier.height(12.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(clientes, key = { it.idUsuario }) { cliente ->
                     ClienteCardItem(
                         cliente = cliente,
                         onClienteClick = { viewModel.toggleClienteExpansion(cliente.idUsuario) },
-                        onEquipoClick = { idEquipo ->
-                            viewModel.toggleEquipoExpansion(cliente.idUsuario, idEquipo)
-                        },
+                        onEquipoClick = { viewModel.toggleEquipoExpansion(cliente.idUsuario, it) },
                         onProtocoloClick = onProtocoloClick,
-                        onEditarProtocolo = onEditarProtocolo,
-                        esTecnico = esTecnico
+                        esTecnico = esTecnico,
+                        onCambiarEstado = { protocolo, idEquipo ->
+                            protocoloAccion = protocolo
+                            equipoAccion = idEquipo
+                            estadoDestino = ""
+                            motivo = ""
+                            mostrarMotivoError = false
+                        }
                     )
                 }
             }
@@ -122,53 +152,27 @@ fun ClienteCardItem(
     onClienteClick: () -> Unit,
     onEquipoClick: (Int) -> Unit,
     onProtocoloClick: (Int) -> Unit,
-    onEditarProtocolo: (Int) -> Unit = {},
-    esTecnico: Boolean = false
+    esTecnico: Boolean = false,
+    onCambiarEstado: (ProtocoloResumen, Int) -> Unit = { _, _ -> }
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onClienteClick() },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+    Card(Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(2.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Row(Modifier.fillMaxWidth().clickable { onClienteClick() },
+                horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text(
-                        text = cliente.nombreRazonSocial,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "RUT: ${cliente.rut}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text(cliente.nombreRazonSocial, style = MaterialTheme.typography.titleMedium)
+                    Text("RUT: ${cliente.rut}", style = MaterialTheme.typography.bodySmall)
                 }
-                Text(
-                    text = if (cliente.isExpanded) "▲" else "▼",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(if (cliente.isExpanded) "▲" else "▼")
             }
-
             if (cliente.isExpanded) {
-                Spacer(modifier = Modifier.height(8.dp))
                 cliente.instalaciones.forEach { instalacion ->
-                    Text(
-                        text = "Instalación: ${instalacion.nombre}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+                    Text("Instalación: ${instalacion.nombre}", style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 6.dp))
                     instalacion.equipos.forEach { equipo ->
                         EquipoCardItem(
-                            equipo = equipo,
-                            onEquipoClick = { onEquipoClick(equipo.idEquipo) },
-                            onProtocoloClick = onProtocoloClick,
-                            onEditarProtocolo = onEditarProtocolo,
-                            esTecnico = esTecnico
+                            equipo, { onEquipoClick(equipo.idEquipo) }, onProtocoloClick,
+                            esTecnico, { protocolo -> onCambiarEstado(protocolo, equipo.idEquipo) }
                         )
                     }
                 }
@@ -182,73 +186,48 @@ fun EquipoCardItem(
     equipo: EquipoConsulta,
     onEquipoClick: () -> Unit,
     onProtocoloClick: (Int) -> Unit,
-    onEditarProtocolo: (Int) -> Unit = {},
-    esTecnico: Boolean = false
+    esTecnico: Boolean = false,
+    onCambiarEstado: (ProtocoloResumen) -> Unit = {}
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 8.dp, top = 4.dp, bottom = 4.dp)
+        modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 4.dp, bottom = 4.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onEquipoClick() },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(Modifier.fillMaxWidth().clickable { onEquipoClick() },
+                horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text(
-                        text = "TAG: ${equipo.tag} (${equipo.tipoEquipo})",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    // CA-2.2: Etiqueta contextual con la ubicación/instalación
-                    AssistChip(
-                        onClick = { },
-                        label = { Text("Ubicación: ${equipo.instalacionNombre}") }
-                    )
+                    Text("TAG: ${equipo.tag} (${equipo.tipoEquipo})", style = MaterialTheme.typography.titleSmall)
+                    Text("Ubicación: ${equipo.instalacionNombre}", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(
-                    text = if (equipo.isExpanded) "▲" else "▼",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(if (equipo.isExpanded) "▲" else "▼")
             }
-
-            // CA-2.3: Historial desplegable de pruebas del equipo
             if (equipo.isExpanded) {
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
-                Text(
-                    text = "Historial de Protocolos:",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 6.dp)
-                )
-
-                if (equipo.historialProtocolos.isEmpty()) {
-                    Text(
-                        text = "Sin revisiones registradas.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Text("Historial de protocolos", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                if (equipo.historialProtocolos.isEmpty()) Text("Sin revisiones registradas.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 equipo.historialProtocolos.forEach { protocolo ->
-                    val esModificable = esTecnico &&
-                        protocolo.estado != "Formalizado" &&
-                        protocolo.estado != "FORMALIZADO" &&
-                        protocolo.estado != "Anulado" &&
-                        protocolo.estado != "ANULADO"
-
-                    ProtocoloResumenItem(
-                        protocolo = protocolo,
-                        onClick = { onProtocoloClick(protocolo.idProtocolo) },
-                        onEditar = if (esModificable) {
-                            { onEditarProtocolo(protocolo.idProtocolo) }
-                        } else null
-                    )
+                    Card(Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text("Nº ${protocolo.numeroProtocolo}", fontWeight = FontWeight.SemiBold)
+                            Text("Fecha: ${protocolo.fechaHora}")
+                            Text("Estado: ${protocolo.estado}", style = MaterialTheme.typography.bodyMedium)
+                            Text("Técnico: ${protocolo.tecnicoResponsable}", style = MaterialTheme.typography.bodySmall)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                ResultadoBadge(protocolo.resultadoGlobal)
+                                TextButton(onClick = { onProtocoloClick(protocolo.idProtocolo) }) { Text("Ver respaldo") }
+                            }
+                            if (esTecnico && accionesDisponiblesCliente(protocolo.estado).isNotEmpty()) {
+                                OutlinedButton(onClick = { onCambiarEstado(protocolo) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Cambiar estado")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -257,115 +236,22 @@ fun EquipoCardItem(
 
 @Composable
 fun ResultadoBadge(resultado: String) {
-    val (color, text) = when (resultado) {
+    val (color, texto) = when (resultado) {
         "Aprobado" -> ResultadoAprobadoColor to "Aprobado"
         "Observado" -> ResultadoObservadoColor to "Observado"
         else -> ResultadoRechazadoColor to "Rechazado"
     }
-
-    Surface(
-        color = color.copy(alpha = 0.15f),
-        shape = MaterialTheme.shapes.extraSmall,
-        border = BorderStroke(1.dp, color)
-    ) {
-        Text(
-            text = text,
-            color = color,
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
+    Surface(color=color.copy(alpha=0.15f), shape=MaterialTheme.shapes.extraSmall, border=BorderStroke(1.dp,color)) {
+        Text(texto,color=color,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(horizontal=7.dp,vertical=3.dp))
     }
 }
 
-
-
-
-
-// 1. Preview de la pantalla completa en modo de vista previa
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun ListaClientesScreenPreview() {
-    MaterialTheme {
-        Surface {
-            // Se renderiza con una lista de datos simulados
-            val clienteEjemplo = ClienteConsulta(
-                idUsuario = 1,
-                nombreRazonSocial = "Envasadora del Pacífico S.A.",
-                rut = "76.482.915-8",
-                isExpanded = true,
-                instalaciones = listOf(
-                    InstalacionConsulta(
-                        idInstalacion = 101,
-                        nombre = "Planta Lampa",
-                        equipos = listOf(
-                            EquipoConsulta(
-                                idEquipo = 201,
-                                tag = "TR-01",
-                                tipoEquipo = "Transformador",
-                                instalacionNombre = "Planta Lampa",
-                                isExpanded = true,
-                                historialProtocolos = listOf(
-                                    ProtocoloResumen(
-                                        idProtocolo = 301,
-                                        numeroProtocolo = "PT-2026-0401",
-                                        fechaHora = "26-09-2026",
-                                        estado = "Registrado en terreno",
-                                        resultadoGlobal = "Observado",
-                                        tecnicoResponsable = "Matías Godoy"
-                                    ),
-                                    ProtocoloResumen(
-                                        idProtocolo = 302,
-                                        numeroProtocolo = "PT-2025-0288",
-                                        fechaHora = "13-09-2025",
-                                        estado = "Formalizado",
-                                        resultadoGlobal = "Aprobado",
-                                        tecnicoResponsable = "Javiera Tapia"
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = {},
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Buscar por Cliente, TAG (ej: TR-01) o Instalación...") },
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                ClienteCardItem(
-                    cliente = clienteEjemplo,
-                    onClienteClick = {},
-                    onEquipoClick = {},
-                    onProtocoloClick = {}
-                )
-            }
-        }
-    }
+private fun accionesDisponiblesCliente(estadoVisible: String): List<Pair<String,String>> = when (estadoVisible.uppercase()) {
+    "BORRADOR" -> listOf("REGISTRADO_TERRENO" to "Marcar como Registrado en terreno","ANULADO" to "Anular protocolo")
+    "REGISTRADO EN TERRENO", "REGISTRADO_TERRENO" -> listOf("FORMALIZADO" to "Formalizar","OBSERVADO" to "Marcar como Observado","ANULADO" to "Anular protocolo")
+    "OBSERVADO" -> listOf("REGISTRADO_TERRENO" to "Volver a Registrado en terreno","ANULADO" to "Anular protocolo")
+    else -> emptyList()
 }
-
-// 2. Preview específico para verificar los tres tipos de badges de resultado (CA-2.3, RN-10)
-@Preview(showBackground = true)
-@Composable
-fun ResultadoBadgesPreview() {
-    MaterialTheme {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ResultadoBadge(resultado = "Aprobado")
-            ResultadoBadge(resultado = "Observado")
-            ResultadoBadge(resultado = "Rechazado")
-        }
-    }
+private fun nombreEstadoCliente(codigo:String)=when(codigo){
+    "REGISTRADO_TERRENO"->"Registrado en terreno";"FORMALIZADO"->"Formalizado";"OBSERVADO"->"Observado";"ANULADO"->"Anulado";else->codigo
 }

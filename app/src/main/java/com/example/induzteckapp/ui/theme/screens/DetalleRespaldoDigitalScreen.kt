@@ -54,6 +54,7 @@ fun DetalleRespaldoDigitalScreen(
     val protocolo by viewModel.protocoloState.collectAsState()
     val cargando by viewModel.cargandoState.collectAsState()
     val error by viewModel.errorState.collectAsState()
+    val esTecnico by viewModel.esTecnico.collectAsState()
 
     LaunchedEffect(idProtocolo) {
         viewModel.cargarDetalle(idProtocolo)
@@ -129,7 +130,7 @@ fun DetalleRespaldoDigitalScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Tarjeta 1: Encabezado y Estado de Formalización (CA-3.2 / RN-17)
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -158,14 +159,18 @@ fun DetalleRespaldoDigitalScreen(
                                 horizontalAlignment = Alignment.End,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                EstadoFormalizacionBadge(estado = p.estadoEtiqueta)
+                                if (esTecnico) {
+                                    EstadoRealBadge(codigo = p.estadoCodigo)
+                                } else {
+                                    EstadoFormalizacionBadge(estado = p.estadoEtiqueta)
+                                }
                                 ResultadoClienteBadge(resultado = p.resultadoGlobal)
                             }
                         }
                     }
                 }
 
-                // Tarjeta 2: Datos Generales de la Inspección (Solo Lectura - CA-3.3)
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -191,7 +196,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                // Tarjeta 3: Pruebas Eléctricas Registradas
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -224,7 +229,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                // Tarjeta 4: Observaciones Generales
+
                 if (p.observaciones.isNotBlank()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -248,7 +253,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                // Sello de Respaldo Digital Oficial
+
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                     shape = MaterialTheme.shapes.medium,
@@ -314,12 +319,12 @@ private fun ItemPruebaRow(prueba: PruebaDetalle) {
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "Elemento: ${prueba.elemento} (${prueba.momento})",
+                text = if (prueba.momento.isBlank()) "Elemento: ${prueba.elemento}" else "Elemento: ${prueba.elemento} (${prueba.momento})",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "Lectura: ${prueba.valorMedido} ${prueba.unidadMedida}",
+                text = "Lecturas:\\n${prueba.valorMedido}",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold
             )

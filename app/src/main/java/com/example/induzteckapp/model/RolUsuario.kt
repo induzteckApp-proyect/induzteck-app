@@ -1,17 +1,7 @@
-// com.example.induzteckapp/model/RolUsuario.kt
-
 package com.example.induzteckapp.model
 
-enum class RolUsuario(
-    val codigo: String,
-    val etiqueta: String
-) {
-    CLIENTE(
-        codigo = "CLIENTE",
-        etiqueta = "Cliente"
-    ),
-    TECNICO_INGENIERO(
-        codigo = "TECNICO",
-        etiqueta = "Técnico / Ingeniero"
-    )
+enum class RolUsuario(val codigo: String, val etiqueta: String) {
+    ADMIN("ADMIN", "Administrador"),
+    CLIENTE("CLIENTE", "Cliente"),
+    TECNICO_INGENIERO("TECNICO", "Técnico / Ingeniero")
 }

@@ -86,7 +86,7 @@ fun ListaInstalacionesScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            // Barra de búsqueda en tiempo real para Instalación o TAG
+
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
@@ -260,8 +260,7 @@ fun EquipoClienteCardItem(
 @Composable
 fun ProtocoloResumenItem(
     protocolo: ProtocoloResumen,
-    onClick: () -> Unit,
-    onEditar: (() -> Unit)? = null
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -288,7 +287,6 @@ fun ProtocoloResumenItem(
         ) {
             EstadoFormalizacionBadge(estado = protocolo.estado)
             ResultadoClienteBadge(resultado = protocolo.resultadoGlobal)
-            onEditar?.let { TextButton(onClick = it) { Text("Editar") } }
         }
     }
 }
@@ -320,6 +318,7 @@ fun ResultadoClienteBadge(resultado: String) {
     val (color, text) = when (resultado) {
         "Aprobado" -> ResultadoAprobadoColor to "Aprobado"
         "Observado" -> ResultadoObservadoColor to "Observado"
+        "Pendiente" -> MaterialTheme.colorScheme.outline to "Pendiente"
         else -> ResultadoRechazadoColor to "Rechazado"
     }
 
@@ -337,9 +336,9 @@ fun ResultadoClienteBadge(resultado: String) {
     }
 }
 
-// -----------------------------------------------------
-// VISTAS PREVIAS (PREVIEWS)
-// -----------------------------------------------------
+
+
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun ListaInstalacionesScreenPreview() {

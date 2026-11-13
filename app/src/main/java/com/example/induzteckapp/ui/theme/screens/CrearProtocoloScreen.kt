@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
@@ -75,11 +76,32 @@ fun CrearProtocoloScreen(
     onIrABorradores: () -> Unit = {},
     onIrAHistorial: () -> Unit = {},
     idBorrador: Long = -1L,
-    idEdicion: Int = -1,
     viewModel: CrearProtocoloViewModel = viewModel()
 ) {
     val estado by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var mensajeResultadoDialog by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(estado.mensajeExito) {
+        val mensaje = estado.mensajeExito
+        if (mensaje != null && (
+            mensaje.contains("Resultado:") ||
+            mensaje.contains("Resultado global:")
+        )) {
+            mensajeResultadoDialog = mensaje
+        }
+    }
+
+    mensajeResultadoDialog?.let { mensaje ->
+        AlertDialog(
+            onDismissRequest = { mensajeResultadoDialog = null },
+            title = { Text("Resultado registrado") },
+            text = { Text(mensaje) },
+            confirmButton = {
+                TextButton(onClick = { mensajeResultadoDialog = null }) { Text("Continuar") }
+            }
+        )
+    }
     val locationManager = remember(context) {
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     }
@@ -113,7 +135,7 @@ fun CrearProtocoloScreen(
                         ).joinToString(", ").takeIf { it.isNotBlank() }
                 }
             } catch (_: Exception) {
-                // La geocodificación puede no estar disponible en todos los dispositivos.
+
             }
 
             val direccionFinal = direccion
@@ -276,10 +298,6 @@ fun CrearProtocoloScreen(
     LaunchedEffect(idBorrador) {
         if (idBorrador > 0L) viewModel.cargarBorrador(idBorrador)
     }
-    LaunchedEffect(idEdicion) {
-        if (idEdicion > 0) viewModel.cargarEdicion(idEdicion)
-    }
-
     LaunchedEffect(estado.mostrarFormularioInstalacion) {
         if (!estado.mostrarFormularioInstalacion) {
             mensajeUbicacion = null
@@ -296,7 +314,7 @@ fun CrearProtocoloScreen(
     )
 
     val onSalirAccion = {
-        viewModel.guardarYMarcarObservadoOnExit(onVolver)
+        viewModel.guardarBorradorAlSalir(onVolver)
     }
 
     androidx.activity.compose.BackHandler {
@@ -306,7 +324,7 @@ fun CrearProtocoloScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (estado.modoEdicion) "Editar protocolo" else "Nuevo protocolo") },
+                title = { Text("Nuevo protocolo") },
                 navigationIcon = {
                     IconButton(onClick = onSalirAccion) {
                         Icon(
@@ -1063,7 +1081,7 @@ private fun PasoMediciones(
                     "T_PRUEBA" -> "Tensión de ensayo en kV. Ejemplos de referencia: 1.0, 2.5, 5.0 o 10.0; confirma siempre el procedimiento aplicable al equipo."
                     "LEC_1MIN" -> "Lectura tomada al minuto. Ejemplo: 500 MΩ."
                     "LEC_10MIN" -> "Lectura tomada a los diez minutos. Ejemplo: 1200 MΩ."
-                    "POS_TAP" -> "Posición del selector TAP como número entero; por ahora solo se admite valores positivos."
+                    "POS_TAP" -> "Posición del selector TAP como número entero. Registra el valor indicado por el equipo."
                     "REL_TEORICA" -> "Relación teórica indicada para el transformador. Ejemplo: 10.0."
                     "REL_MEDIDA" -> "Relación medida durante la prueba. Ejemplo: 10.03."
                     "AT_BT", "AT_T", "BT_T" -> "Registra el valor medido en mΩ; no hay un umbral automático definido para esta prueba."

@@ -14,17 +14,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.induzteckapp.R
-import com.example.induzteckapp.model.RolUsuario
 import com.example.induzteckapp.model.Usuario
-import com.example.induzteckapp.ui.theme.components.BotonPrincipal
-import com.example.induzteckapp.ui.theme.components.BotonSecundario
-import com.example.induzteckapp.ui.theme.components.CampoContrasena
-import com.example.induzteckapp.ui.theme.components.CampoTexto
-import com.example.induzteckapp.ui.theme.components.ImagenEncabezado
+import com.example.induzteckapp.ui.theme.components.*
 import com.example.induzteckapp.ui.theme.theme.Dimens
 import com.example.induzteckapp.ui.theme.theme.MiRegistroTheme
 import com.example.induzteckapp.viewmodel.LoginViewModel
@@ -32,171 +26,63 @@ import com.example.induzteckapp.viewmodel.LoginViewModel
 @Composable
 fun LoginScreen(
     onLoginExitoso: (Usuario) -> Unit,
-    onIrARegistro: () -> Unit,
+    onIrARegistro: () -> Unit = {},
     onIrARecuperar: () -> Unit,
+    onIrAActivar: () -> Unit = {},
     viewModel: LoginViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
+    val ui by viewModel.uiState.collectAsStateWithLifecycle()
     LoginContent(
-        correo = uiState.correo,
-        contrasena = uiState.contrasena,
-        contrasenaVisible = uiState.contrasenaVisible,
-        errorCorreo = uiState.errorCorreo,
-        errorContrasena = uiState.errorContrasena,
-        mensajeError = uiState.mensajeError,
-        onCorreoCambia = viewModel::onCorreoCambia,
-        onContrasenaCambia = viewModel::onContrasenaCambia,
-        onAlternarVisibilidad = viewModel::onAlternarVisibilidadContrasena,
-        onIniciarSesion = {
-            viewModel.validarCredenciales()?.let { usuario ->
-                onLoginExitoso(usuario)
-            }
-        },
-        onIrARegistro = onIrARegistro,
-        onIrARecuperar = onIrARecuperar
+        correo=ui.correo, contrasena=ui.contrasena, visible=ui.contrasenaVisible,
+        errorCorreo=ui.errorCorreo, errorClave=ui.errorContrasena, mensaje=ui.mensajeError,
+        cargando=ui.cargando, onCorreo=viewModel::onCorreoCambia,
+        onClave=viewModel::onContrasenaCambia, onVisible=viewModel::onAlternarVisibilidadContrasena,
+        onLogin={ viewModel.iniciarSesion { usuario -> usuario?.let(onLoginExitoso) } },
+        onRecuperar=onIrARecuperar, onActivar=onIrAActivar
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LoginContent(
-    correo: String,
-    contrasena: String,
-    contrasenaVisible: Boolean,
-    errorCorreo: String?,
-    errorContrasena: String?,
-    mensajeError: String?,
-    onCorreoCambia: (String) -> Unit,
-    onContrasenaCambia: (String) -> Unit,
-    onAlternarVisibilidad: () -> Unit,
-    onIniciarSesion: () -> Unit,
-    onIrARegistro: () -> Unit,
-    onIrARecuperar: () -> Unit
+    correo: String, contrasena: String, visible: Boolean,
+    errorCorreo: String?, errorClave: String?, mensaje: String?, cargando: Boolean,
+    onCorreo: (String)->Unit, onClave: (String)->Unit, onVisible: ()->Unit,
+    onLogin: ()->Unit, onRecuperar: ()->Unit, onActivar: ()->Unit
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Iniciar sesión") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding() // Solución al problema del teclado ocultando los campos inferiores
-                .verticalScroll(rememberScrollState())
-                .padding(Dimens.espacioPantalla),
-            verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)
-        ) {
-            ImagenEncabezado(
-                imagen = R.drawable.banner_induztek,
-                descripcion = "Encabezado de Induztek",
-                titulo = "Bienvenido a Induztek",
-                subtitulo = "Ingresa con tu cuenta para continuar"
-            )
-
-            Text(
-                text = "Accede a la información correspondiente a tu cuenta institucional o de cliente.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            CampoTexto(
-                valor = correo,
-                onValorCambia = onCorreoCambia,
-                etiqueta = "Correo electrónico (ej: usuario@induzteck.cl)",
-                icono = R.drawable.ic_correo,
-                error = errorCorreo,
-                tipoTeclado = KeyboardType.Email
-            )
-
-            CampoContrasena(
-                valor = contrasena,
-                onValorCambia = onContrasenaCambia,
-                etiqueta = "Contraseña",
-                visible = contrasenaVisible,
-                onAlternarVisible = onAlternarVisibilidad,
-                error = errorContrasena
-            )
-
-            TextButton(
-                onClick = onIrARecuperar,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("¿Olvidaste tu contraseña?")
+    Scaffold(topBar={ TopAppBar(title={Text("Iniciar sesión")}, colors=TopAppBarDefaults.topAppBarColors(
+        containerColor=MaterialTheme.colorScheme.primary,titleContentColor=MaterialTheme.colorScheme.onPrimary)) },
+        containerColor=MaterialTheme.colorScheme.background) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState())
+            .padding(Dimens.espacioPantalla), verticalArrangement=Arrangement.spacedBy(Dimens.espacioMedio)) {
+            ImagenEncabezado(imagen=R.drawable.banner_induztek,descripcion="Encabezado de Induztek",
+                titulo="Bienvenido a Induztek",subtitulo="Ingresa con tu cuenta para continuar")
+            Text("Accede a la información correspondiente a tu cuenta institucional o de cliente.",
+                style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            CampoTexto(valor=correo,onValorCambia=onCorreo,etiqueta="Correo electrónico",
+                icono=R.drawable.ic_correo,error=errorCorreo,tipoTeclado=KeyboardType.Email)
+            CampoContrasena(valor=contrasena,onValorCambia=onClave,etiqueta="Contraseña",
+                visible=visible,onAlternarVisible=onVisible,error=errorClave)
+            TextButton(onClick=onRecuperar,modifier=Modifier.align(Alignment.End)){Text("¿Olvidaste tu contraseña?")}
+            AnimatedVisibility(visible=mensaje!=null,enter=fadeIn()+expandVertically(),exit=fadeOut()+shrinkVertically()){
+                mensaje?.let { Text(it,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodyMedium) }
             }
-
-            // Animación para el mensaje de error global
-            AnimatedVisibility(
-                visible = mensajeError != null,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                mensajeError?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+            BotonPrincipal(texto=if(cargando) "Conectando…" else "Iniciar sesión",onClick=onLogin,
+                modifier=Modifier.fillMaxWidth(),habilitado=!cargando)
+            if(cargando) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
+            TextButton(onClick=onActivar,modifier=Modifier.align(Alignment.CenterHorizontally)){
+                Text("Tengo un token de invitación para activar mi cuenta")
             }
-
-            // Botón principal de acción
-            BotonPrincipal(
-                texto = "Iniciar sesión",
-                onClick = onIniciarSesion,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            //Spacer(modifier = Modifier.height(12.dp))
-
-            //HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            //Spacer(modifier = Modifier.height(8.dp))
-
-            // JERARQUÍA MEJORADA: Sección clara para usuarios nuevos con Botón Secundario destacado
-            Text(
-                text = "¿Aún no tienes cuenta registrada en Induzteck?",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-
-            BotonSecundario(
-                texto = "Registrar nueva cuenta",
-                onClick = onIrARegistro,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Text("Las cuentas son creadas por un administrador de Induztek.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier=Modifier.align(Alignment.CenterHorizontally))
         }
     }
 }
 
-
-@Preview(showBackground = true)
-@Composable
-private fun LoginScreenPreview() {
+@Preview(showBackground=true)
+@Composable private fun LoginScreenPreview(){
     MiRegistroTheme {
-        LoginContent(
-            correo = "tecnico@induzteck.cl",
-            contrasena = "",
-            contrasenaVisible = false,
-            errorCorreo = null,
-            errorContrasena = null,
-            mensajeError = null,
-            onCorreoCambia = {},
-            onContrasenaCambia = {},
-            onAlternarVisibilidad = {},
-            onIniciarSesion = {},
-            onIrARegistro = {},
-            onIrARecuperar = {}
-        )
+        LoginContent("tecnico@induztek.cl","",false,null,null,null,false,{}, {}, {}, {}, {}, {})
     }
 }
-

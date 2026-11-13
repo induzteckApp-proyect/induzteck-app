@@ -3,8 +3,8 @@ package com.example.induzteckapp.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.induzteckapp.data.EstadoProtocoloRepository
 import com.example.induzteckapp.data.InduztekDbHelper
-import com.example.induzteckapp.data.InduztekPreferencias
 import com.example.induzteckapp.model.ProtocoloHistorial
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,12 +19,14 @@ data class HistorialProtocolosUiState(
     val cargando: Boolean = false,
     val guardando: Boolean = false,
     val mensajeError: String? = null,
-    val mensajeExito: String? = null
+    val mensajeExito: String? = null,
+    val busqueda: String = ""
 )
 
 class HistorialProtocolosViewModel(application: Application) : AndroidViewModel(application) {
     private val dbHelper = InduztekDbHelper(application)
-    private val preferencias = InduztekPreferencias(application)
+    private val estados = EstadoProtocoloRepository(application)
+    private var todosLosProtocolos: List<ProtocoloHistorial> = emptyList()
     private val _uiState = MutableStateFlow(HistorialProtocolosUiState())
     val uiState: StateFlow<HistorialProtocolosUiState> = _uiState.asStateFlow()
 
@@ -34,28 +36,38 @@ class HistorialProtocolosViewModel(application: Application) : AndroidViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(cargando = true, mensajeError = null) }
             try {
-                val lista = withContext(Dispatchers.IO) { dbHelper.obtenerHistorialProtocolos() }
-                _uiState.update { it.copy(protocolos = lista, cargando = false) }
+                todosLosProtocolos = withContext(Dispatchers.IO) { dbHelper.obtenerHistorialProtocolos() }
+                aplicarFiltro()
+                _uiState.update { it.copy(cargando = false) }
             } catch (_: Exception) {
                 _uiState.update { it.copy(cargando = false, mensajeError = "No fue posible cargar el historial de protocolos.") }
             }
         }
     }
 
-    fun cambiarEstado(idProtocolo: Long, nuevoEstado: String, motivo: String = "") {
-        val idUsuario = preferencias.leerSesion()
-        if (idUsuario <= 0L) {
-            _uiState.update { it.copy(mensajeError = "No hay una sesión activa.") }
-            return
+    fun onBusquedaChanged(valor: String) {
+        _uiState.update { it.copy(busqueda = valor) }
+        aplicarFiltro()
+    }
+
+    private fun aplicarFiltro() {
+        val filtro = _uiState.value.busqueda.trim().lowercase()
+        val lista = if (filtro.isBlank()) todosLosProtocolos else todosLosProtocolos.filter { p ->
+            listOf(p.numero, p.cliente, p.instalacion, p.ubicacion, p.tagEquipo, p.tipoEquipo,
+                p.estadoNombre, p.estadoCodigo, p.fechaHora, p.tecnico)
+                .any { it.lowercase().contains(filtro) }
         }
+        _uiState.update { it.copy(protocolos = lista) }
+    }
+
+    fun cambiarEstado(idProtocolo: Long, nuevoEstado: String, motivo: String = "") {
         viewModelScope.launch {
             _uiState.update { it.copy(guardando = true, mensajeError = null, mensajeExito = null) }
             try {
-                withContext(Dispatchers.IO) {
-                    dbHelper.cambiarEstadoProtocolo(idProtocolo, nuevoEstado, idUsuario, motivo)
-                }
-                val lista = withContext(Dispatchers.IO) { dbHelper.obtenerHistorialProtocolos() }
-                _uiState.update { it.copy(protocolos = lista, guardando = false, mensajeExito = "Estado del protocolo actualizado correctamente.") }
+                estados.cambiarEstado(idProtocolo, nuevoEstado, motivo)
+                todosLosProtocolos = withContext(Dispatchers.IO) { dbHelper.obtenerHistorialProtocolos() }
+                aplicarFiltro()
+                _uiState.update { it.copy(guardando = false, mensajeExito = "Estado del protocolo actualizado correctamente.") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(guardando = false, mensajeError = e.message ?: "No fue posible cambiar el estado del protocolo.") }
             }
@@ -63,4 +75,10 @@ class HistorialProtocolosViewModel(application: Application) : AndroidViewModel(
     }
 
     fun limpiarMensajes() { _uiState.update { it.copy(mensajeError = null, mensajeExito = null) } }
+
+    override fun onCleared() {
+        dbHelper.close()
+        estados.cerrar()
+        super.onCleared()
+    }
 }
