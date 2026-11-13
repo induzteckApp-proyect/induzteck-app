@@ -1,8 +1,8 @@
 package com.example.induzteckapp.ui.theme.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -330,6 +330,32 @@ private fun ItemPruebaRow(prueba: PruebaDetalle) {
             )
         }
         ResultadoClienteBadge(resultado = prueba.resultado)
+    }
+}
+
+@Composable
+private fun EstadoRealBadge(codigo: String) {
+    val (fondo, textoColor) = when (codigo) {
+        "REGISTRADO_TERRENO" -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        "FORMALIZADO" -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        "OBSERVADO" -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        "ANULADO" -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val nombre = when (codigo) {
+        "REGISTRADO_TERRENO" -> "Registrado en terreno"
+        "FORMALIZADO" -> "Formalizado"
+        "OBSERVADO" -> "Observado"
+        "ANULADO" -> "Anulado"
+        else -> codigo
+    }
+    Surface(color = fondo, contentColor = textoColor, shape = RoundedCornerShape(50)) {
+        Text(
+            text = nombre,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
