@@ -9,7 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
     // Emulador Android -> PC. En un teléfono físico reemplaza 10.0.2.2
     // por la IP LAN del computador, por ejemplo http://192.168.1.20:8090/
-    const val BASE_URL = "http://10.0.2.2:8090/"
+    const val BASE_URL = "http://192.168.1.11:8090/"
 
     @Volatile private var api: UsuarioApi? = null
     @Volatile private var avatar: AvatarApi? = null

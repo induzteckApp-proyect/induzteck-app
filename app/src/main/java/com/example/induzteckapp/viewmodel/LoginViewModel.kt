@@ -19,7 +19,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     private val patronCorreo = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
     private val patronContrasena =
-        Regex("^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
+        Regex("(?U)^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
 
     fun onCorreoCambia(valor: String) {
         _uiState.update { it.copy(correo = valor, errorCorreo = null, mensajeError = null) }

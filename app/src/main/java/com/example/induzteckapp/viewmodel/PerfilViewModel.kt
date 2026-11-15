@@ -52,7 +52,7 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
     private val patronTexto = Regex("^[\\p{L}][\\p{L} .'-]*$")
     private val patronTelefono = Regex("^[0-9]{8,12}$")
     private val patronGiro = Regex("^[\\p{L}\\p{N}][\\p{L}\\p{N} .,'&()/-]*$")
-    private val patronClave = Regex("^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
+    private val patronClave = Regex("(?U)^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
 
     init { cargarPerfil() }
 
