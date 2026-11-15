@@ -1,4 +1,8 @@
-
+/* nota:
+* Debido a la inegración de microservicios, algunas cosas de este Screen quedaron pendientes de ligeras modificaciones de compatibilidad
+* SIN EMBARGO, es el diseño de este Screen que se debe usar para cuando el ADMIN cree las cuentas de usuario, solo hay que adaptarlo a los nuevos requisitos
+*
+* */
 
 package com.example.induzteckapp.ui.theme.screens
 
@@ -23,7 +27,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.induzteckapp.R
 import com.example.induzteckapp.model.FormularioUiState
 import com.example.induzteckapp.model.RolUsuario
-import com.example.induzteckapp.model.Usuario
 import com.example.induzteckapp.ui.theme.components.BotonPrincipal
 import com.example.induzteckapp.ui.theme.components.BotonSecundario
 import com.example.induzteckapp.ui.theme.components.CampoContrasena
@@ -41,7 +44,6 @@ import com.example.induzteckapp.viewmodel.FormularioViewModel
 
 @Composable
 fun FormularioScreen(
-    onRegistroExitoso: (Usuario) -> Unit,
     onVolver: () -> Unit,
     viewModel: FormularioViewModel = viewModel()
 ) {
@@ -65,11 +67,7 @@ fun FormularioScreen(
         onAlternarVisibilidadConfirmacion = viewModel::onAlternarVisibilidadConfirmacion,
         onAceptaTerminos = viewModel::onAceptaTerminos,
         onLimpiar = viewModel::onLimpiar,
-        onRegistrar = {
-            viewModel.onRegistrar()?.let { usuario ->
-                onRegistroExitoso(usuario)
-            }
-        },
+        onRegistrar = viewModel::onRegistrar,
         onVolver = onVolver
     )
 }
@@ -100,12 +98,12 @@ fun FormularioContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Registro de usuario") },
+                title = { Text("Crear cuenta de usuario") },
                 navigationIcon = {
                     IconButton(onClick = onVolver) {
                         Icon(
                             painter = painterResource(R.drawable.ic_volver),
-                            contentDescription = "Volver al Login"
+                            contentDescription = "Volver a administración"
                         )
                     }
                 },
@@ -127,9 +125,9 @@ fun FormularioContent(
         ) {
             ImagenEncabezado(
                 imagen = R.drawable.banner_induztek,
-                descripcion = "Registro de usuario de Induztek",
-                titulo = "Bienvenido a Induztek",
-                subtitulo = "Crea tu cuenta para acceder a nuestros servicios"
+                descripcion = "Formulario de creación de cuentas Induztek",
+                titulo = "Crear cuenta en Induztek",
+                subtitulo = "El usuario recibirá una invitación para activar su cuenta y definir su contraseña"
             )
 
             Column(
@@ -152,9 +150,10 @@ fun FormularioContent(
                         onSeleccionar = { rol -> if (rol != null) onRolSeleccionado(rol) },
                         textoDe = { rol ->
                             when (rol) {
+                                RolUsuario.ADMIN -> "Administrador"
                                 RolUsuario.CLIENTE -> "Cliente"
                                 RolUsuario.TECNICO_INGENIERO -> "Técnico / Ingeniero"
-                                null -> "Selecciona un rol"
+                                else -> ""
                             }
                         }
                     )
@@ -196,7 +195,7 @@ fun FormularioContent(
                         )
                     }
 
-                    if (uiState.rol == RolUsuario.TECNICO_INGENIERO || (uiState.rol == RolUsuario.CLIENTE && !uiState.esEmpresa)) {
+                    if (uiState.rol != null && !(uiState.rol == RolUsuario.CLIENTE && uiState.esEmpresa)) {
                         CampoTexto(
                             valor = uiState.apellido,
                             onValorCambia = onApellidoCambia,
@@ -256,53 +255,12 @@ fun FormularioContent(
                 
                 
                 
-                TarjetaSeccion(titulo = "Seguridad de la cuenta") {
-                    CampoContrasena(
-                        valor = uiState.contrasena,
-                        onValorCambia = onContrasenaCambia,
-                        etiqueta = "Contraseña",
-                        visible = uiState.contrasenaVisible,
-                        onAlternarVisible = onAlternarVisibilidad,
-                        error = uiState.errorContrasena
-                    )
+                Text(
+                    text = "Por seguridad, la contraseña no se crea aquí. El usuario recibirá un correo de activación y deberá definir una contraseña nueva.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-                    Text(
-                        text = "Mínimo 8 caracteres, debe incluir mayúscula, minúscula, número y símbolo.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    CampoContrasena(
-                        valor = uiState.confirmarContrasena,
-                        onValorCambia = onConfirmarContrasenaCambia,
-                        etiqueta = "Confirmar contraseña",
-                        visible = uiState.confirmarContrasenaVisible,
-                        onAlternarVisible = onAlternarVisibilidadConfirmacion,
-                        error = uiState.errorConfirmarContrasena
-                    )
-                }
-
-                
-                
-                
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.espacioChico)) {
-                    CasillaConTexto(
-                        texto = "Acepto los términos, condiciones y políticas de uso",
-                        marcado = uiState.aceptaTerminos,
-                        onCambio = onAceptaTerminos
-                    )
-                    AnimatedVisibility(
-                        visible = uiState.errorTermino != null,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        uiState.errorTermino?.let { ErrorFormulario(it) }
-                    }
-                }
-
-                
-                
-                
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(Dimens.espacioMedio),
@@ -314,8 +272,9 @@ fun FormularioContent(
                         modifier = Modifier.weight(1f)
                     )
                     BotonPrincipal(
-                        texto = "Registrar",
+                        texto = if (uiState.guardando) "Creando..." else "Crear cuenta",
                         onClick = onRegistrar,
+                        habilitado = !uiState.guardando,
                         icono = R.drawable.ic_check,
                         modifier = Modifier.weight(1f)
                     )
@@ -329,7 +288,10 @@ fun FormularioContent(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically()
                 ) {
-                    MensajeExito(nombre = uiState.nombre)
+                    MensajeExito(
+                        mensaje = uiState.mensajeExito ?: "La cuenta fue creada correctamente.",
+                        tokenDesarrollo = uiState.tokenDesarrollo
+                    )
                 }
             }
         }
@@ -347,7 +309,7 @@ private fun ErrorFormulario(mensaje: String) {
 }
 
 @Composable
-private fun MensajeExito(nombre: String) {
+private fun MensajeExito(mensaje: String, tokenDesarrollo: String?) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = ExitoFondo, contentColor = Exito)
@@ -365,10 +327,15 @@ private fun MensajeExito(nombre: String) {
                 tint = Exito,
                 modifier = Modifier.size(Dimens.tamanoIcono)
             )
-            Text(
-                text = "¡Registro completado con éxito, $nombre!",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(text = mensaje, style = MaterialTheme.typography.bodyMedium)
+                if (!tokenDesarrollo.isNullOrBlank()) {
+                    Text(
+                        text = "Token de activación de desarrollo: $tokenDesarrollo",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
         }
     }
 }

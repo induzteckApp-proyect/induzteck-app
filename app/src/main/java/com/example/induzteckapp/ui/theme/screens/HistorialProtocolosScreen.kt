@@ -155,6 +155,14 @@ fun HistorialProtocolosScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                OutlinedTextField(
+                    value = estado.busqueda,
+                    onValueChange = viewModel::onBusquedaChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Buscar protocolo") },
+                    placeholder = { Text("Equipo, cliente, estado, fecha o número…") }
+                )
                 BotonSecundario(
                     texto = if (estado.cargando) "Actualizando…" else "Actualizar historial",
                     onClick = viewModel::cargarHistorial,

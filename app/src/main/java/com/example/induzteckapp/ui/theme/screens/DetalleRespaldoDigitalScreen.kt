@@ -1,8 +1,8 @@
 package com.example.induzteckapp.ui.theme.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -54,6 +54,7 @@ fun DetalleRespaldoDigitalScreen(
     val protocolo by viewModel.protocoloState.collectAsState()
     val cargando by viewModel.cargandoState.collectAsState()
     val error by viewModel.errorState.collectAsState()
+    val esTecnico by viewModel.esTecnico.collectAsState()
 
     LaunchedEffect(idProtocolo) {
         viewModel.cargarDetalle(idProtocolo)
@@ -129,7 +130,7 @@ fun DetalleRespaldoDigitalScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -158,14 +159,18 @@ fun DetalleRespaldoDigitalScreen(
                                 horizontalAlignment = Alignment.End,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                EstadoFormalizacionBadge(estado = p.estadoEtiqueta)
+                                if (esTecnico) {
+                                    EstadoRealBadge(codigo = p.estadoCodigo)
+                                } else {
+                                    EstadoFormalizacionBadge(estado = p.estadoEtiqueta)
+                                }
                                 ResultadoClienteBadge(resultado = p.resultadoGlobal)
                             }
                         }
                     }
                 }
 
-                
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -191,7 +196,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -224,7 +229,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                
+
                 if (p.observaciones.isNotBlank()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -248,7 +253,7 @@ fun DetalleRespaldoDigitalScreen(
                     }
                 }
 
-                
+
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                     shape = MaterialTheme.shapes.medium,
@@ -314,17 +319,43 @@ private fun ItemPruebaRow(prueba: PruebaDetalle) {
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "Elemento: ${prueba.elemento} (${prueba.momento})",
+                text = if (prueba.momento.isBlank()) "Elemento: ${prueba.elemento}" else "Elemento: ${prueba.elemento} (${prueba.momento})",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "Lectura: ${prueba.valorMedido} ${prueba.unidadMedida}",
+                text = "Lecturas:\\n${prueba.valorMedido}",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold
             )
         }
         ResultadoClienteBadge(resultado = prueba.resultado)
+    }
+}
+
+@Composable
+private fun EstadoRealBadge(codigo: String) {
+    val (fondo, textoColor) = when (codigo) {
+        "REGISTRADO_TERRENO" -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        "FORMALIZADO" -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        "OBSERVADO" -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        "ANULADO" -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val nombre = when (codigo) {
+        "REGISTRADO_TERRENO" -> "Registrado en terreno"
+        "FORMALIZADO" -> "Formalizado"
+        "OBSERVADO" -> "Observado"
+        "ANULADO" -> "Anulado"
+        else -> codigo
+    }
+    Surface(color = fondo, contentColor = textoColor, shape = RoundedCornerShape(50)) {
+        Text(
+            text = nombre,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

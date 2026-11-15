@@ -86,7 +86,7 @@ fun ListaInstalacionesScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            
+
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
@@ -260,8 +260,7 @@ fun EquipoClienteCardItem(
 @Composable
 fun ProtocoloResumenItem(
     protocolo: ProtocoloResumen,
-    onClick: () -> Unit,
-    onEditar: (() -> Unit)? = null
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -288,7 +287,6 @@ fun ProtocoloResumenItem(
         ) {
             EstadoFormalizacionBadge(estado = protocolo.estado)
             ResultadoClienteBadge(resultado = protocolo.resultadoGlobal)
-            onEditar?.let { TextButton(onClick = it) { Text("Editar") } }
         }
     }
 }
@@ -320,6 +318,7 @@ fun ResultadoClienteBadge(resultado: String) {
     val (color, text) = when (resultado) {
         "Aprobado" -> ResultadoAprobadoColor to "Aprobado"
         "Observado" -> ResultadoObservadoColor to "Observado"
+        "Pendiente" -> MaterialTheme.colorScheme.outline to "Pendiente"
         else -> ResultadoRechazadoColor to "Rechazado"
     }
 
