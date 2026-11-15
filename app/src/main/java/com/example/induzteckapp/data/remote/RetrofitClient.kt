@@ -7,12 +7,13 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    // Emulador Android -> PC. En un teléfono físico reemplaza 10.0.2.2
-    // por la IP LAN del computador, por ejemplo http://192.168.1.20:8090/
-    const val BASE_URL = "http://192.168.1.11:8090/"
+    // Se configura con -PINDUZTEK_API_URL=... al compilar.
+    const val BASE_URL = com.example.induzteckapp.BuildConfig.API_BASE_URL
 
     @Volatile private var api: UsuarioApi? = null
     @Volatile private var avatar: AvatarApi? = null
+    @Volatile private var activos: ActivosApi? = null
+    @Volatile private var protocolos: ProtocolosApi? = null
 
     fun usuarioApi(context: Context): UsuarioApi {
         return api ?: synchronized(this) {
@@ -23,6 +24,18 @@ object RetrofitClient {
     fun avatarApi(context: Context): AvatarApi {
         return avatar ?: synchronized(this) {
             avatar ?: crear(context.applicationContext).create(AvatarApi::class.java).also { avatar = it }
+        }
+    }
+
+    fun activosApi(context: Context): ActivosApi {
+        return activos ?: synchronized(this) {
+            activos ?: crear(context.applicationContext).create(ActivosApi::class.java).also { activos = it }
+        }
+    }
+
+    fun protocolosApi(context: Context): ProtocolosApi {
+        return protocolos ?: synchronized(this) {
+            protocolos ?: crear(context.applicationContext).create(ProtocolosApi::class.java).also { protocolos = it }
         }
     }
 

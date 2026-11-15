@@ -46,7 +46,7 @@ fun AppNavegacion() {
             )
         }
         composable(Ruta.AdminUsuarios.ruta) {
-            AdminUsuariosScreen(onVolver = { navController.popBackStack() })
+            FormularioScreen(onVolver = { navController.popBackStack() })
         }
         composable(
             route = Ruta.CrearProtocolo.ruta,

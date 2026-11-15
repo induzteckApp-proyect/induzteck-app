@@ -52,7 +52,7 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
     private val patronTexto = Regex("^[\\p{L}][\\p{L} .'-]*$")
     private val patronTelefono = Regex("^[0-9]{8,12}$")
     private val patronGiro = Regex("^[\\p{L}\\p{N}][\\p{L}\\p{N} .,'&()/-]*$")
-    private val patronClave = Regex("(?U)^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
+    private val patronClave = Regex("^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
 
     init { cargarPerfil() }
 
@@ -102,18 +102,21 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
         _errorContacto.value = if (_contactoNombre.value.isNotBlank() &&
             !patronTexto.matches(_contactoNombre.value.trim())) "El nombre de contacto no es válido." else null
         val esCliente = _usuarioState.value?.rol == com.example.induzteckapp.model.RolUsuario.CLIENTE
+        val tieneDatosComerciales = esCliente && listOf(
+            _giro.value, _contactoNombre.value, _contactoCargo.value
+        ).any { it.isNotBlank() }
         _errorGiro.value = when {
-            esCliente && _giro.value.isBlank() -> "El giro es obligatorio."
+            tieneDatosComerciales && _giro.value.isBlank() -> "Completa el giro comercial."
             _giro.value.isNotBlank() && !patronGiro.matches(_giro.value.trim()) -> "El giro contiene caracteres no permitidos."
             else -> null
         }
         _errorContactoCargo.value = when {
-            esCliente && _contactoCargo.value.isBlank() -> "El cargo del contacto es obligatorio."
+            tieneDatosComerciales && _contactoCargo.value.isBlank() -> "Completa el cargo del contacto."
             _contactoCargo.value.isNotBlank() && !patronTexto.matches(_contactoCargo.value.trim()) -> "El cargo contiene caracteres no permitidos."
             else -> null
         }
-        if (esCliente && _contactoNombre.value.isBlank()) {
-            _errorContacto.value = "El nombre de contacto es obligatorio."
+        if (tieneDatosComerciales && _contactoNombre.value.isBlank()) {
+            _errorContacto.value = "Completa el nombre de contacto."
         }
         if (listOf(_errorNombre.value,_errorApellido.value,_errorTelefono.value,_errorContacto.value,_errorGiro.value,_errorContactoCargo.value).any { it!=null }) return
 

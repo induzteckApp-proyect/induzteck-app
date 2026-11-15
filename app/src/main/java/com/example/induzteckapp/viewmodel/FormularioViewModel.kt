@@ -1,0 +1,189 @@
+package com.example.induzteckapp.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.induzteckapp.data.UsuarioRepository
+import com.example.induzteckapp.model.FormularioUiState
+import com.example.induzteckapp.model.RolUsuario
+import com.example.induzteckapp.model.Usuario
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+class FormularioViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = UsuarioRepository(application)
+    private val _uiState = MutableStateFlow(FormularioUiState())
+    val uiState: StateFlow<FormularioUiState> = _uiState.asStateFlow()
+
+    private val patronNombre = Regex("^[\\p{L}][\\p{L} .'-]*$")
+    private val patronCorreo = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+    private val patronTelefono = Regex("^[0-9]{8,12}$")
+    private val patronRut = Regex("^[0-9]{7,8}-?[0-9Kk]$")
+
+    fun onRolSeleccionado(rol: RolUsuario) {
+        _uiState.update { estado ->
+            val esEmpresa = rol == RolUsuario.CLIENTE && estado.esEmpresa
+            estado.copy(
+                rol = rol,
+                esEmpresa = esEmpresa,
+                apellido = if (esEmpresa) "" else estado.apellido,
+                giro = if (rol == RolUsuario.CLIENTE && esEmpresa) estado.giro else "",
+                contactoNombre = if (rol == RolUsuario.CLIENTE && esEmpresa) estado.contactoNombre else "",
+                contactoCargo = if (rol == RolUsuario.CLIENTE && esEmpresa) estado.contactoCargo else "",
+                errorRol = null, errorGiro = null, errorContactoNombre = null, errorContactoCargo = null,
+                registroExitoso = false, mensajeExito = null, tokenDesarrollo = null
+            )
+        }
+    }
+
+    fun onEsEmpresaCambia(valor: Boolean) {
+        _uiState.update { estado ->
+            val esEmpresa = valor && estado.rol == RolUsuario.CLIENTE
+            estado.copy(
+                esEmpresa = esEmpresa,
+                apellido = if (esEmpresa) "" else estado.apellido,
+                giro = if (esEmpresa) estado.giro else "",
+                contactoNombre = if (esEmpresa) estado.contactoNombre else "",
+                contactoCargo = if (esEmpresa) estado.contactoCargo else "",
+                errorApellido = null, errorGiro = null, errorContactoNombre = null, errorContactoCargo = null,
+                registroExitoso = false
+            )
+        }
+    }
+
+    fun onRutCambia(valor: String) = actualizar { copy(rut = valor, errorRut = null, registroExitoso = false) }
+    fun onNombreCambia(valor: String) = actualizar { copy(nombre = valor, errorNombre = null, registroExitoso = false) }
+    fun onApellidoCambia(valor: String) = actualizar { copy(apellido = valor, errorApellido = null, registroExitoso = false) }
+    fun onGiroCambia(valor: String) = actualizar { copy(giro = valor, errorGiro = null, registroExitoso = false) }
+    fun onContactoNombreCambia(valor: String) = actualizar { copy(contactoNombre = valor, errorContactoNombre = null, registroExitoso = false) }
+    fun onContactoCargoCambia(valor: String) = actualizar { copy(contactoCargo = valor, errorContactoCargo = null, registroExitoso = false) }
+    fun onCorreoCambia(valor: String) = actualizar { copy(correo = valor, errorCorreo = null, registroExitoso = false) }
+    fun onTelefonoCambia(valor: String) = actualizar { copy(telefono = valor.filter(Char::isDigit), errorTelefono = null, registroExitoso = false) }
+
+    // Se conservan estos callbacks por compatibilidad con el formulario recuperado;
+    // las contraseñas ya no se capturan aquí: el usuario las define al activar su cuenta.
+    fun onContrasenaCambia(valor: String) = Unit
+    fun onConfirmarContrasenaCambia(valor: String) = Unit
+    fun onAlternarVisibilidad() = Unit
+    fun onAlternarVisibilidadConfirmacion() = Unit
+    fun onAceptaTerminos(valor: Boolean) = Unit
+
+    fun onLimpiar() { _uiState.value = FormularioUiState() }
+
+    fun onRegistrar() {
+        val estado = _uiState.value
+        val rol = estado.rol
+        val rutNormalizado = normalizarRut(estado.rut)
+        val correoNormalizado = estado.correo.trim().lowercase()
+        val requiereApellido = rol != null && !(rol == RolUsuario.CLIENTE && estado.esEmpresa)
+        val requiereEmpresa = rol == RolUsuario.CLIENTE && estado.esEmpresa
+
+        val errores = FormularioUiState(
+            errorRol = if (rol == null) "Debe seleccionar un tipo de usuario." else null,
+            errorRut = when {
+                estado.rut.isBlank() -> "El RUT es obligatorio."
+                !validarRut(estado.rut) -> "Ingrese un RUT válido, incluyendo su dígito verificador."
+                else -> null
+            },
+            errorNombre = when {
+                estado.nombre.isBlank() -> "El nombre o razón social es obligatorio."
+                estado.nombre.trim().length < 2 -> "Debe ingresar al menos 2 caracteres."
+                !patronNombre.matches(estado.nombre.trim()) -> "Use letras, espacios, puntos, apóstrofes o guiones."
+                else -> null
+            },
+            errorApellido = when {
+                requiereApellido && estado.apellido.isBlank() -> "El apellido es obligatorio."
+                estado.apellido.isNotBlank() && !patronNombre.matches(estado.apellido.trim()) -> "Caracteres no permitidos."
+                else -> null
+            },
+            errorCorreo = when {
+                correoNormalizado.isBlank() -> "El correo electrónico es obligatorio."
+                !patronCorreo.matches(correoNormalizado) -> "Ingrese un correo electrónico válido."
+                else -> null
+            },
+            errorTelefono = when {
+                estado.telefono.isBlank() -> "El teléfono es obligatorio."
+                !patronTelefono.matches(estado.telefono) -> "Ingrese entre 8 y 12 dígitos."
+                else -> null
+            },
+            errorGiro = if (requiereEmpresa && estado.giro.isBlank()) "El giro comercial es obligatorio." else null,
+            errorContactoNombre = if (requiereEmpresa && estado.contactoNombre.isBlank()) "El nombre del contacto es obligatorio." else null,
+            errorContactoCargo = if (requiereEmpresa && estado.contactoCargo.isBlank()) "El cargo del contacto es obligatorio." else null
+        )
+        val hayErrores = listOf(
+            errores.errorRol, errores.errorRut, errores.errorNombre, errores.errorApellido,
+            errores.errorCorreo, errores.errorTelefono, errores.errorGiro,
+            errores.errorContactoNombre, errores.errorContactoCargo
+        ).any { it != null }
+        if (hayErrores) {
+            _uiState.update { it.copy(
+                errorRol = errores.errorRol, errorRut = errores.errorRut,
+                errorNombre = errores.errorNombre, errorApellido = errores.errorApellido,
+                errorCorreo = errores.errorCorreo, errorTelefono = errores.errorTelefono,
+                errorGiro = errores.errorGiro, errorContactoNombre = errores.errorContactoNombre,
+                errorContactoCargo = errores.errorContactoCargo, registroExitoso = false
+            ) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(guardando = true, mensajeExito = null, tokenDesarrollo = null, registroExitoso = false) }
+            try {
+                val respuesta = repository.crearUsuario(
+                    rut = rutNormalizado,
+                    nombre = estado.nombre.trim(),
+                    apellido = if (requiereApellido) estado.apellido.trim() else "",
+                    correo = correoNormalizado,
+                    telefono = estado.telefono,
+                    rol = rol!!.codigo,
+                    giro = if (requiereEmpresa) estado.giro else "",
+                    contactoNombre = if (requiereEmpresa) estado.contactoNombre else "",
+                    contactoCargo = if (requiereEmpresa) estado.contactoCargo else ""
+                )
+                _uiState.update { it.copy(
+                    guardando = false, registroExitoso = true,
+                    mensajeExito = respuesta.mensaje,
+                    tokenDesarrollo = respuesta.tokenDesarrollo
+                ) }
+            } catch (e: Exception) {
+                val mensaje = e.message ?: "No fue posible crear la cuenta."
+                _uiState.update { it.copy(
+                    guardando = false,
+                    errorCorreo = if (mensaje.contains("correo", true) || mensaje.contains("registrado", true)) mensaje else null,
+                    errorRut = if (mensaje.contains("RUT", true)) mensaje else null,
+                    mensajeExito = null, tokenDesarrollo = null
+                ) }
+            }
+        }
+    }
+
+    private fun actualizar(cambio: FormularioUiState.() -> FormularioUiState) {
+        _uiState.update(cambio)
+    }
+
+    private fun normalizarRut(valor: String): String {
+        val limpio = valor.trim().replace(".", "").replace("-", "").uppercase()
+        return if (limpio.length < 2) limpio else "${limpio.dropLast(1)}-${limpio.last()}"
+    }
+
+    private fun validarRut(valor: String): Boolean {
+        val limpio = valor.trim().replace(".", "").replace("-", "").uppercase()
+        if (!patronRut.matches(limpio)) return false
+        val cuerpo = limpio.dropLast(1)
+        var suma = 0
+        var factor = 2
+        for (digito in cuerpo.reversed()) {
+            suma += digito.digitToInt() * factor
+            factor = if (factor == 7) 2 else factor + 1
+        }
+        val dvCalculado = when (val resultado = 11 - suma % 11) {
+            11 -> '0'
+            10 -> 'K'
+            else -> resultado.digitToChar()
+        }
+        return limpio.last() == dvCalculado
+    }
+}

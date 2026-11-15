@@ -3,7 +3,8 @@ package com.example.induzteckapp.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.induzteckapp.data.InduztekDbHelper
+import com.example.induzteckapp.data.ActivosRepository
+import com.example.induzteckapp.data.ProtocolosRepository
 import com.example.induzteckapp.data.InduztekPreferencias
 import com.example.induzteckapp.model.ClienteProtocolo
 import com.example.induzteckapp.model.Comuna
@@ -31,10 +32,14 @@ class CrearProtocoloViewModel(
     application: Application
 ) : AndroidViewModel(application) {
 
-    private val dbHelper = InduztekDbHelper(application)
+    private companion object {
+        const val RESULTADO_APROBADO = 1
+        const val RESULTADO_OBSERVADO = 2
+        const val RESULTADO_RECHAZADO = 3
+    }
 
-
-
+    private val activosRepository = ActivosRepository(application)
+    private val protocolosRepository = ProtocolosRepository(application)
     private val preferencias = InduztekPreferencias(application)
 
     private val _uiState = MutableStateFlow(CrearProtocoloUiState())
@@ -53,10 +58,10 @@ class CrearProtocoloViewModel(
             try {
                 val datos = withContext(Dispatchers.IO) {
                     Triple(
-                        dbHelper.obtenerClientesProtocolo(),
-                        dbHelper.obtenerComunas(),
-                        dbHelper.obtenerTiposEquipo()
-                    ) to dbHelper.obtenerRegiones()
+                        activosRepository.obtenerClientesProtocolo(),
+                        activosRepository.obtenerComunas(),
+                        activosRepository.obtenerTiposEquipo()
+                    ) to activosRepository.obtenerRegiones()
                 }
 
                 _uiState.update {
@@ -100,7 +105,7 @@ class CrearProtocoloViewModel(
         viewModelScope.launch {
             try {
                 val instalaciones = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerInstalacionesPorCliente(cliente.idUsuario)
+                    activosRepository.obtenerInstalacionesPorCliente(cliente.idUsuario)
                 }
 
                 _uiState.update { estado ->
@@ -165,7 +170,7 @@ class CrearProtocoloViewModel(
             return
         }
 
-        val errores = buildMap {
+        val errores = buildMap<String, String> {
             if (estado.nombreInstalacion.isBlank()) {
                 put("nombreInstalacion", "Ingresa el nombre de la instalación.")
             }
@@ -200,7 +205,7 @@ class CrearProtocoloViewModel(
 
             try {
                 val idNuevo = withContext(Dispatchers.IO) {
-                    dbHelper.insertarInstalacionProtocolo(
+                    activosRepository.insertarInstalacionProtocolo(
                         cliente.idUsuario,
                         estado.nombreInstalacion.trim(),
                         estado.ubicacionInstalacion.trim(),
@@ -215,7 +220,7 @@ class CrearProtocoloViewModel(
                 }
 
                 val instalacionesActualizadas = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerInstalacionesPorCliente(cliente.idUsuario)
+                    activosRepository.obtenerInstalacionesPorCliente(cliente.idUsuario)
                 }
 
                 val nuevaInstalacion =
@@ -272,7 +277,7 @@ class CrearProtocoloViewModel(
         viewModelScope.launch {
             try {
                 val equipos = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerEquiposPorInstalacion(
+                    activosRepository.obtenerEquiposPorInstalacion(
                         instalacion.idInstalacion
                     )
                 }
@@ -405,7 +410,7 @@ class CrearProtocoloViewModel(
 
             try {
                 val idNuevo = withContext(Dispatchers.IO) {
-                    dbHelper.insertarEquipoProtocolo(
+                    activosRepository.insertarEquipoProtocolo(
                         instalacion.idInstalacion,
                         estado.tagEquipo.trim(),
                         tipoNoNulo.idTipoEquipo,
@@ -433,7 +438,7 @@ class CrearProtocoloViewModel(
                 }
 
                 val equiposActualizados = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerEquiposPorInstalacion(
+                    activosRepository.obtenerEquiposPorInstalacion(
                         instalacion.idInstalacion
                     )
                 }
@@ -517,7 +522,7 @@ class CrearProtocoloViewModel(
         viewModelScope.launch {
             try {
                 val pruebas = withContext(Dispatchers.IO) {
-                    dbHelper.obtenerPruebasCompatibles(equipo.idTipoEquipo)
+                    protocolosRepository.obtenerPruebasCompatibles(equipo.idTipoEquipo)
                 }
 
                 _uiState.update { estado ->
@@ -610,10 +615,10 @@ class CrearProtocoloViewModel(
             try {
                 val fechaHora = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
                 val id = withContext(Dispatchers.IO) {
-                    val nuevoId = dbHelper.guardarCabeceraBorrador(
+                    val nuevoId = protocolosRepository.guardarCabeceraBorrador(
                         null, equipo.idEquipo, userId, fechaHora, temperatura, humedad
                     )
-                    dbHelper.guardarPruebasSeleccionadasBorrador(
+                    protocolosRepository.guardarPruebasSeleccionadasBorrador(
                         nuevoId, estado.pruebasSeleccionadas.map { it.idTipoPrueba }
                     )
                     nuevoId
@@ -631,7 +636,7 @@ class CrearProtocoloViewModel(
         val estado = _uiState.value
         when (estado.pasoActual) {
             1 -> {
-                val errores = buildMap {
+                val errores = buildMap<String, String> {
                     if (estado.clienteSeleccionado == null) {
                         put("clienteSeleccionado", "Selecciona un cliente.")
                     } else if (estado.instalacionSeleccionada == null) {
@@ -667,7 +672,7 @@ class CrearProtocoloViewModel(
                 }
                 val temperatura = decimalValido(estado.temperaturaC)
                 val humedad = decimalValido(estado.humedadPct)
-                val errores = buildMap {
+                val errores = buildMap<String, String> {
                     if (temperatura == null || temperatura !in -10.0..60.0) {
                         put("temperaturaC", "Ingresa una temperatura entre -10 y 60 °C.")
                     }
@@ -698,11 +703,11 @@ class CrearProtocoloViewModel(
                     try {
                         val fechaHora = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
                         val idBorrador = withContext(Dispatchers.IO) {
-                            val id = dbHelper.guardarCabeceraBorrador(
+                            val id = protocolosRepository.guardarCabeceraBorrador(
                                 estado.idProtocoloBorrador, equipo.idEquipo, userId,
                                 fechaHora, temperaturaValida, humedadValida
                             )
-                            dbHelper.guardarPruebasSeleccionadasBorrador(
+                            protocolosRepository.guardarPruebasSeleccionadasBorrador(
                                 id, estado.pruebasSeleccionadas.map { it.idTipoPrueba }
                             )
                             id
@@ -712,7 +717,7 @@ class CrearProtocoloViewModel(
                             parametrosParaEquipo(
                                 primera,
                                 equipo,
-                                dbHelper.obtenerParametrosPorTipoPrueba(primera.idTipoPrueba)
+                                protocolosRepository.obtenerParametrosPorTipoPrueba(primera.idTipoPrueba)
                             )
                         }
                         _uiState.update {
@@ -837,7 +842,7 @@ class CrearProtocoloViewModel(
             _uiState.update { it.copy(guardando = true, mensajeError = null, mensajeExito = null, erroresCampos = emptyMap()) }
             try {
                 withContext(Dispatchers.IO) {
-                    dbHelper.guardarPruebaEvaluada(
+                    protocolosRepository.guardarPruebaEvaluada(
                         idBorrador,
                         prueba.idTipoPrueba,
                         estado.elementoPrueba.trim().ifBlank { null },
@@ -878,7 +883,7 @@ class CrearProtocoloViewModel(
                         parametrosParaEquipo(
                             siguiente,
                             equipo,
-                            dbHelper.obtenerParametrosPorTipoPrueba(siguiente.idTipoPrueba)
+                            protocolosRepository.obtenerParametrosPorTipoPrueba(siguiente.idTipoPrueba)
                         )
                     }
                     _uiState.update {
@@ -897,9 +902,9 @@ class CrearProtocoloViewModel(
                     }
                 } else {
                     val resumen = withContext(Dispatchers.IO) {
-                        dbHelper.finalizarBorradorProtocolo(idBorrador)
-                        dbHelper.obtenerResultadoGlobalProtocolo(idBorrador) to
-                                dbHelper.obtenerResumenPruebasProtocolo(idBorrador)
+                        protocolosRepository.finalizarBorradorProtocolo(idBorrador)
+                        protocolosRepository.obtenerResultadoGlobalProtocolo(idBorrador) to
+                                protocolosRepository.obtenerResumenPruebasProtocolo(idBorrador)
                     }
                     val resumenGlobal = resumen.first?.let { nombreResultado(it) } ?: "Sin resultado"
                     _uiState.update {
@@ -965,48 +970,48 @@ class CrearProtocoloViewModel(
     ): Int {
         val nombre = estado.pruebaSeleccionada?.nombre.orEmpty().lowercase(Locale.ROOT)
         if ("aislación" in nombre || "aislacion" in nombre) {
-            val uno = m["LEC_1MIN"] ?: return InduztekDbHelper.RESULTADO_RECHAZADO
+            val uno = m["LEC_1MIN"] ?: return RESULTADO_RECHAZADO
             val diez = m["LEC_10MIN"]
             if (diez == null) return estado.resultadoManual
-            if (uno < 100.0) return InduztekDbHelper.RESULTADO_RECHAZADO
+            if (uno < 100.0) return RESULTADO_RECHAZADO
             val ip = diez / uno
             return when {
-                ip >= 2.0 -> InduztekDbHelper.RESULTADO_APROBADO
-                ip >= 1.0 -> InduztekDbHelper.RESULTADO_OBSERVADO
-                else -> InduztekDbHelper.RESULTADO_RECHAZADO
+                ip >= 2.0 -> RESULTADO_APROBADO
+                ip >= 1.0 -> RESULTADO_OBSERVADO
+                else -> RESULTADO_RECHAZADO
             }
         }
         if ("ttr" in nombre || "relación de transformación" in nombre || "relacion de transformacion" in nombre) {
-            val teorica = m["REL_TEORICA"] ?: return InduztekDbHelper.RESULTADO_RECHAZADO
-            val medida = m["REL_MEDIDA"] ?: return InduztekDbHelper.RESULTADO_RECHAZADO
+            val teorica = m["REL_TEORICA"] ?: return RESULTADO_RECHAZADO
+            val medida = m["REL_MEDIDA"] ?: return RESULTADO_RECHAZADO
             val error = kotlin.math.abs(medida - teorica) / teorica * 100.0
             return when {
-                error <= 0.5 -> InduztekDbHelper.RESULTADO_APROBADO
-                error <= 1.0 -> InduztekDbHelper.RESULTADO_OBSERVADO
-                else -> InduztekDbHelper.RESULTADO_RECHAZADO
+                error <= 0.5 -> RESULTADO_APROBADO
+                error <= 1.0 -> RESULTADO_OBSERVADO
+                else -> RESULTADO_RECHAZADO
             }
         }
         if ("contacto" in nombre) {
-            val medida = m["RES_CONTACTO"] ?: return InduztekDbHelper.RESULTADO_RECHAZADO
+            val medida = m["RES_CONTACTO"] ?: return RESULTADO_RECHAZADO
             if (maxContactos == null || maxContactos <= 0.0) {
-                return InduztekDbHelper.RESULTADO_RECHAZADO
+                return RESULTADO_RECHAZADO
             }
             val porcentaje = medida / maxContactos * 100.0
             return when {
-                porcentaje <= 100.0 -> InduztekDbHelper.RESULTADO_APROBADO
-                porcentaje <= 120.0 -> InduztekDbHelper.RESULTADO_OBSERVADO
-                else -> InduztekDbHelper.RESULTADO_RECHAZADO
+                porcentaje <= 100.0 -> RESULTADO_APROBADO
+                porcentaje <= 120.0 -> RESULTADO_OBSERVADO
+                else -> RESULTADO_RECHAZADO
             }
         }
         if ("relé" in nombre || "rele" in nombre) {
-            if (!estado.releOpero) return InduztekDbHelper.RESULTADO_RECHAZADO
-            val esperado = m["TIEMPO_ESPERADO"] ?: return InduztekDbHelper.RESULTADO_RECHAZADO
-            val medido = m["TIEMPO_MEDIDO"] ?: return InduztekDbHelper.RESULTADO_RECHAZADO
+            if (!estado.releOpero) return RESULTADO_RECHAZADO
+            val esperado = m["TIEMPO_ESPERADO"] ?: return RESULTADO_RECHAZADO
+            val medido = m["TIEMPO_MEDIDO"] ?: return RESULTADO_RECHAZADO
             val diferencia = kotlin.math.abs(medido - esperado) / esperado * 100.0
             return when {
-                diferencia <= 5.0 -> InduztekDbHelper.RESULTADO_APROBADO
-                diferencia <= 10.0 -> InduztekDbHelper.RESULTADO_OBSERVADO
-                else -> InduztekDbHelper.RESULTADO_RECHAZADO
+                diferencia <= 5.0 -> RESULTADO_APROBADO
+                diferencia <= 10.0 -> RESULTADO_OBSERVADO
+                else -> RESULTADO_RECHAZADO
             }
         }
         if ("devanado" in nombre) return estado.resultadoManual
@@ -1014,8 +1019,8 @@ class CrearProtocoloViewModel(
     }
 
     private fun nombreResultado(id: Int): String = when (id) {
-        InduztekDbHelper.RESULTADO_APROBADO -> "Aprobado"
-        InduztekDbHelper.RESULTADO_OBSERVADO -> "Observado"
+        RESULTADO_APROBADO -> "Aprobado"
+        RESULTADO_OBSERVADO -> "Observado"
         else -> "Rechazado"
     }
 
@@ -1030,20 +1035,19 @@ class CrearProtocoloViewModel(
             _uiState.update { it.copy(cargando = true, mensajeError = null) }
             try {
                 val cargado = withContext(Dispatchers.IO) {
-                    val detalle = dbHelper.obtenerDetalleBorrador(idProtocolo, userId)
-                        ?: throw IllegalArgumentException("No se encontró el borrador.")
-                    val clientes = dbHelper.obtenerClientesProtocolo()
+                    val detalle = protocolosRepository.obtenerDetalleBorrador(idProtocolo, userId)
+                    val clientes = activosRepository.obtenerClientesProtocolo()
                     val cliente = clientes.firstOrNull { it.idUsuario == detalle.idUsuarioCliente }
                         ?: throw IllegalStateException("El cliente del borrador ya no está disponible.")
-                    val instalaciones = dbHelper.obtenerInstalacionesPorCliente(cliente.idUsuario)
+                    val instalaciones = activosRepository.obtenerInstalacionesPorCliente(cliente.idUsuario)
                     val instalacion = instalaciones.firstOrNull { it.idInstalacion == detalle.idInstalacion }
                         ?: throw IllegalStateException("La instalación del borrador ya no está disponible.")
-                    val equipos = dbHelper.obtenerEquiposPorInstalacion(instalacion.idInstalacion)
+                    val equipos = activosRepository.obtenerEquiposPorInstalacion(instalacion.idInstalacion)
                     val equipo = equipos.firstOrNull { it.idEquipo == detalle.idEquipo }
                         ?: throw IllegalStateException("El equipo del borrador ya no está disponible.")
-                    val compatibles = dbHelper.obtenerPruebasCompatibles(equipo.idTipoEquipo)
-                    val completadas = dbHelper.obtenerTiposPruebaCompletados(idProtocolo)
-                    val seleccionadas = dbHelper.obtenerTiposPruebaSeleccionadosBorrador(idProtocolo)
+                    val compatibles = protocolosRepository.obtenerPruebasCompatibles(equipo.idTipoEquipo)
+                    val completadas = protocolosRepository.obtenerTiposPruebaCompletados(idProtocolo)
+                    val seleccionadas = protocolosRepository.obtenerTiposPruebaSeleccionadosBorrador(idProtocolo)
                     Triple(
                         detalle,
                         Triple(cliente, instalaciones, instalacion),
@@ -1061,7 +1065,7 @@ class CrearProtocoloViewModel(
                 val tiposSeleccionados = cargado.third.third.third
                 val elementosCargados = withContext(Dispatchers.IO) {
                     compatibles.flatMap { prueba ->
-                        dbHelper.obtenerElementosPruebaCompletados(idProtocolo, prueba.idTipoPrueba)
+                        protocolosRepository.obtenerElementosPruebaCompletados(idProtocolo, prueba.idTipoPrueba)
                             .map { "${prueba.idTipoPrueba}|$it" }
                     }.toSet()
                 }
@@ -1092,21 +1096,21 @@ class CrearProtocoloViewModel(
                         parametrosParaEquipo(
                             primeraPruebaPendiente,
                             equipo,
-                            dbHelper.obtenerParametrosPorTipoPrueba(primeraPruebaPendiente.idTipoPrueba)
+                            protocolosRepository.obtenerParametrosPorTipoPrueba(primeraPruebaPendiente.idTipoPrueba)
                         )
                     }
                 } else emptyList()
                 val resultadoRecuperado = if (finalizarAlRecuperar) {
                     withContext(Dispatchers.IO) {
-                        dbHelper.finalizarBorradorProtocolo(idProtocolo)
-                        dbHelper.obtenerResultadoGlobalProtocolo(idProtocolo) to
-                                dbHelper.obtenerResumenPruebasProtocolo(idProtocolo)
+                        protocolosRepository.finalizarBorradorProtocolo(idProtocolo)
+                        protocolosRepository.obtenerResultadoGlobalProtocolo(idProtocolo) to
+                                protocolosRepository.obtenerResumenPruebasProtocolo(idProtocolo)
                     }
                 } else null
-                val clientesActuales = withContext(Dispatchers.IO) { dbHelper.obtenerClientesProtocolo() }
-                val regiones = withContext(Dispatchers.IO) { dbHelper.obtenerRegiones() }
-                val comunas = withContext(Dispatchers.IO) { dbHelper.obtenerComunas() }
-                val tipos = withContext(Dispatchers.IO) { dbHelper.obtenerTiposEquipo() }
+                val clientesActuales = withContext(Dispatchers.IO) { activosRepository.obtenerClientesProtocolo() }
+                val regiones = withContext(Dispatchers.IO) { activosRepository.obtenerRegiones() }
+                val comunas = withContext(Dispatchers.IO) { activosRepository.obtenerComunas() }
+                val tipos = withContext(Dispatchers.IO) { activosRepository.obtenerTiposEquipo() }
                 _uiState.update {
                     it.copy(
                         pasoActual = pasoRecuperado,
@@ -1153,7 +1157,7 @@ class CrearProtocoloViewModel(
         if (userId <= 0L) return
         viewModelScope.launch {
             try {
-                val lista = withContext(Dispatchers.IO) { dbHelper.obtenerBorradoresProtocolo(userId) }
+                val lista = withContext(Dispatchers.IO) { protocolosRepository.obtenerBorradoresProtocolo(userId) }
                 _uiState.update { it.copy(borradores = lista) }
             } catch (_: Exception) {
                 mostrarError("No fue posible consultar los borradores.")
@@ -1238,10 +1242,10 @@ class CrearProtocoloViewModel(
             try {
                 withContext(Dispatchers.IO) {
                     val fechaHora = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-                    val nuevoId = dbHelper.guardarCabeceraBorrador(
+                    val nuevoId = protocolosRepository.guardarCabeceraBorrador(
                         null, equipo.idEquipo, userId, fechaHora, temperatura, humedad
                     )
-                    dbHelper.guardarPruebasSeleccionadasBorrador(
+                    protocolosRepository.guardarPruebasSeleccionadasBorrador(
                         nuevoId, estado.pruebasSeleccionadas.map { it.idTipoPrueba }
                     )
                 }
@@ -1253,7 +1257,6 @@ class CrearProtocoloViewModel(
     }
 
     override fun onCleared() {
-        dbHelper.close()
         super.onCleared()
     }
 }

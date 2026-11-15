@@ -54,6 +54,9 @@ data class FormularioUiState(
 
     // === Resultado del formulario ===
 
-    val registroExitoso: Boolean = false
+    val registroExitoso: Boolean = false,
+    val guardando: Boolean = false,
+    val mensajeExito: String? = null,
+    val tokenDesarrollo: String? = null
 )
 

@@ -3,9 +3,9 @@ package com.example.induzteckapp.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.induzteckapp.data.EstadoProtocoloRepository
-import com.example.induzteckapp.data.InduztekDbHelper
+import com.example.induzteckapp.data.ActivosRepository
 import com.example.induzteckapp.data.InduztekPreferencias
+import com.example.induzteckapp.data.ProtocolosRepository
 import com.example.induzteckapp.model.ClienteConsulta
 import com.example.induzteckapp.model.RolUsuario
 import kotlinx.coroutines.Dispatchers
@@ -16,10 +16,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ListaClientesViewModel(application: Application) : AndroidViewModel(application) {
-    private val dbHelper = InduztekDbHelper(application)
+    private val activosRepository = ActivosRepository(application)
+    private val protocolosRepository = ProtocolosRepository(application)
     private val preferencias = InduztekPreferencias(application)
-    private val estados = EstadoProtocoloRepository(application)
-
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
     private val _clientesState = MutableStateFlow<List<ClienteConsulta>>(emptyList())
@@ -31,20 +30,26 @@ class ListaClientesViewModel(application: Application) : AndroidViewModel(applic
     private val _mensajeEstado = MutableStateFlow<String?>(null)
     val mensajeEstado: StateFlow<String?> = _mensajeEstado.asStateFlow()
 
-    init { cargarDatos(); verificarRolTecnico() }
-
-    private fun verificarRolTecnico() {
-        val idUsuario = preferencias.leerSesion()
-        if (idUsuario > 0L) {
-            _esTecnico.value = preferencias.leerRol() == RolUsuario.TECNICO_INGENIERO.name
-        }
+    init {
+        _esTecnico.value = preferencias.leerRol() == RolUsuario.TECNICO_INGENIERO.codigo
+        cargarDatos()
     }
 
-    fun onSearchQueryChanged(newQuery: String) { _searchQuery.value = newQuery; cargarDatos(newQuery) }
+    fun onSearchQueryChanged(newQuery: String) {
+        _searchQuery.value = newQuery
+        cargarDatos(newQuery)
+    }
 
     private fun cargarDatos(filtro: String = "") {
-        viewModelScope.launch(Dispatchers.IO) {
-            _clientesState.value = dbHelper.obtenerClientesConActivos(filtro)
+        viewModelScope.launch {
+            try {
+                _clientesState.value = withContext(Dispatchers.IO) {
+                    activosRepository.listarClientesConsulta(filtro)
+                }
+            } catch (e: Exception) {
+                _mensajeEstado.value = e.message ?: "No fue posible cargar los clientes y sus activos."
+                _clientesState.value = emptyList()
+            }
         }
     }
 
@@ -55,20 +60,22 @@ class ListaClientesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun toggleEquipoExpansion(idCliente: Int, idEquipo: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val historial = dbHelper.obtenerHistorialEquipo(idEquipo)
-            _clientesState.value = _clientesState.value.map { cliente ->
-                if (cliente.idUsuario == idCliente) {
-                    val instalaciones = cliente.instalaciones.map { instalacion ->
-                        val equipos = instalacion.equipos.map { equipo ->
-                            if (equipo.idEquipo == idEquipo) equipo.copy(
-                                isExpanded = !equipo.isExpanded, historialProtocolos = historial
-                            ) else equipo
-                        }
-                        instalacion.copy(equipos = equipos)
-                    }
-                    cliente.copy(instalaciones = instalaciones)
-                } else cliente
+        viewModelScope.launch {
+            try {
+                val historial = withContext(Dispatchers.IO) { protocolosRepository.obtenerHistorialEquipo(idEquipo) }
+                _clientesState.value = _clientesState.value.map { cliente ->
+                    if (cliente.idUsuario == idCliente) {
+                        cliente.copy(instalaciones = cliente.instalaciones.map { instalacion ->
+                            instalacion.copy(equipos = instalacion.equipos.map { equipo ->
+                                if (equipo.idEquipo == idEquipo) equipo.copy(
+                                    isExpanded = !equipo.isExpanded, historialProtocolos = historial
+                                ) else equipo
+                            })
+                        })
+                    } else cliente
+                }
+            } catch (e: Exception) {
+                _mensajeEstado.value = e.message ?: "No fue posible cargar el historial del equipo."
             }
         }
     }
@@ -78,8 +85,8 @@ class ListaClientesViewModel(application: Application) : AndroidViewModel(applic
             _guardandoEstado.value = true
             _mensajeEstado.value = null
             try {
-                estados.cambiarEstado(idProtocolo.toLong(), nuevoEstado, motivo)
-                val historial = withContext(Dispatchers.IO) { dbHelper.obtenerHistorialEquipo(idEquipo) }
+                withContext(Dispatchers.IO) { protocolosRepository.cambiarEstado(idProtocolo.toLong(), nuevoEstado, motivo) }
+                val historial = withContext(Dispatchers.IO) { protocolosRepository.obtenerHistorialEquipo(idEquipo) }
                 _clientesState.value = _clientesState.value.map { cliente ->
                     cliente.copy(instalaciones = cliente.instalaciones.map { instalacion ->
                         instalacion.copy(equipos = instalacion.equipos.map { equipo ->
@@ -95,10 +102,4 @@ class ListaClientesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun limpiarMensajeEstado() { _mensajeEstado.value = null }
-
-    override fun onCleared() {
-        dbHelper.close()
-        estados.cerrar()
-        super.onCleared()
-    }
 }

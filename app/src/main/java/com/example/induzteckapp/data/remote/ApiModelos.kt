@@ -35,7 +35,7 @@ data class UsuarioResponse(
 ) {
     fun aUsuario() = Usuario(
         idUsuario = id,
-        rol = runCatching { RolUsuario.valueOf(rol) }.getOrDefault(RolUsuario.CLIENTE),
+        rol = RolUsuario.desdeCodigo(rol),
         rut = rut, nombre = nombre, apellido = apellido, correo = correo,
         telefono = telefono, passwordHash = "", activo = activo,
         giro = giro, contactoNombre = contactoNombre, contactoCargo = contactoCargo,

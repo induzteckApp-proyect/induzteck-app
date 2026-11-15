@@ -15,10 +15,6 @@ class InduztekPreferencias(context: Context) {
     }
 
     // Compatibilidad con pantallas antiguas que todavía consultan el ID de sesión.
-    fun guardarSesion(idUsuario: Long) {
-        prefs.edit { putLong(CLAVE_ID_USUARIO, idUsuario) }
-    }
-
     fun guardarSesion(idUsuario: Long, token: String, rol: String) {
         prefs.edit {
             putLong(CLAVE_ID_USUARIO, idUsuario)
