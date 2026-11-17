@@ -1,9 +1,11 @@
-val induztekApiBaseUrl = providers.gradleProperty("INDUZTEK_API_URL").orElse("http://10.0.2.2:8090/").get()
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+val induztekApiBaseUrl = providers.gradleProperty("INDUZTEK_API_URL")
+    .orElse("http://10.0.2.2:8090/")
+    .get()
 
 android {
     namespace = "com.example.induzteckapp"
