@@ -9,25 +9,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.induzteckapp.R
+import com.example.induzteckapp.ui.theme.components.BotonPrincipal
+import com.example.induzteckapp.ui.theme.components.BotonSecundario
+import com.example.induzteckapp.ui.theme.components.CampoContrasena
+import com.example.induzteckapp.ui.theme.components.CampoTexto
+import com.example.induzteckapp.ui.theme.components.ImagenEncabezado
+import com.example.induzteckapp.ui.theme.components.TarjetaSeccion
 import com.example.induzteckapp.viewmodel.LoginViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,91 +45,172 @@ fun RecuperarContrasenaScreen(onVolverLogin: () -> Unit, viewModel: LoginViewMod
     var nueva by remember { mutableStateOf("") }
     var confirmar by remember { mutableStateOf("") }
     var tokenSolicitado by remember { mutableStateOf(false) }
+    var nuevaVisible by remember { mutableStateOf(false) }
+    var confirmarVisible by remember { mutableStateOf(false) }
+    var errorCorreo by remember { mutableStateOf<String?>(null) }
+    var errorToken by remember { mutableStateOf<String?>(null) }
+    var errorNueva by remember { mutableStateOf<String?>(null) }
+    var errorConfirmar by remember { mutableStateOf<String?>(null) }
     var mensaje by remember { mutableStateOf<String?>(null) }
     var exito by remember { mutableStateOf(false) }
+
+    fun solicitarCodigo() {
+        errorCorreo = when {
+            correo.isBlank() -> "El correo electrónico es obligatorio."
+            !correo.trim().matches(Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) -> "Ingresa un correo electrónico válido."
+            else -> null
+        }
+        if (errorCorreo != null) return
+        viewModel.solicitarRecuperacion(correo.trim()) { ok, texto ->
+            exito = ok
+            if (ok) {
+                tokenSolicitado = true
+                mensaje = texto
+            } else if (texto.contains("correo", ignoreCase = true)) {
+                errorCorreo = texto
+            } else {
+                mensaje = texto
+            }
+        }
+    }
+
+    fun restablecer() {
+        errorToken = if (token.isBlank()) "Ingresa el código recibido por correo." else null
+        errorNueva = when {
+            nueva.isBlank() -> "La nueva contraseña es obligatoria."
+            !LoginViewModel.validarContrasena(nueva) -> "Debe tener 8 a 72 caracteres, mayúscula, minúscula, número y símbolo permitido."
+            else -> null
+        }
+        errorConfirmar = when {
+            confirmar.isBlank() -> "Confirma tu nueva contraseña."
+            confirmar != nueva -> "Las contraseñas no coinciden."
+            else -> null
+        }
+        if (errorToken != null || errorNueva != null || errorConfirmar != null) return
+        viewModel.restablecerContrasena(token.trim(), nueva, confirmar) { ok, texto ->
+            exito = ok
+            if (ok) {
+                mensaje = texto
+            } else {
+                val detalle = texto.lowercase()
+                when {
+                    detalle.contains("token") || detalle.contains("código") || detalle.contains("codigo") -> errorToken = texto
+                    detalle.contains("contraseña") -> errorNueva = texto
+                    else -> mensaje = texto
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Recuperar contraseña") },
                 navigationIcon = {
-                    TextButton(onClick = onVolverLogin) {
-                        Text("Volver")
+                    IconButton(onClick = onVolverLogin) {
+                        Icon(painterResource(R.drawable.ic_volver), contentDescription = "Volver al inicio de sesión")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
-            Modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                "Ingresa tu correo registrado. Recibirás un código de un solo uso para restablecer tu contraseña.",
-                style = MaterialTheme.typography.bodyMedium
+            ImagenEncabezado(
+                imagen = R.drawable.banner_induztek,
+                descripcion = "Recuperación de contraseña Induztek",
+                titulo = "Recupera tu acceso",
+                subtitulo = "Verificaremos tu identidad mediante un código enviado a tu correo"
             )
-            if (!tokenSolicitado) {
-                OutlinedTextField(
-                    value = correo,
-                    onValueChange = { correo = it; mensaje = null },
-                    label = { Text("Correo registrado") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                )
-                Button(
-                    onClick = {
-                        viewModel.solicitarRecuperacion(correo) { ok, msg ->
-                            exito = ok
-                            mensaje = msg
-                            if (ok) tokenSolicitado = true
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Enviar código")
-                }
-            } else {
-                OutlinedTextField(
-                    value = token,
-                    onValueChange = { token = it; mensaje = null },
-                    label = { Text("Código de recuperación") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = nueva,
-                    onValueChange = { nueva = it; mensaje = null },
-                    label = { Text("Nueva contraseña") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                )
-                OutlinedTextField(
-                    value = confirmar,
-                    onValueChange = { confirmar = it; mensaje = null },
-                    label = { Text("Confirmar contraseña") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                )
-                Button(
-                    onClick = {
-                        viewModel.restablecerContrasena(token, nueva, confirmar) { ok, msg ->
-                            exito = ok
-                            mensaje = msg
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Restablecer contraseña")
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                TarjetaSeccion(titulo = if (tokenSolicitado) "Verificación de identidad" else "Solicitar código") {
+                    if (!tokenSolicitado) {
+                        Text(
+                            "Ingresa el correo asociado a tu cuenta. Recibirás un código de un solo uso para continuar.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        CampoTexto(
+                            valor = correo,
+                            onValorCambia = { correo = it; errorCorreo = null; mensaje = null },
+                            etiqueta = "Correo electrónico",
+                            icono = R.drawable.ic_correo,
+                            error = errorCorreo,
+                            tipoTeclado = KeyboardType.Email
+                        )
+                        BotonPrincipal(
+                            texto = "Enviar código",
+                            onClick = ::solicitarCodigo,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Text(
+                            "Ingresa el código enviado a $correo y define tu nueva contraseña.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        CampoTexto(
+                            valor = token,
+                            onValorCambia = { token = it; errorToken = null; mensaje = null },
+                            etiqueta = "Código de recuperación",
+                            icono = R.drawable.ic_candado,
+                            error = errorToken,
+                            tipoTeclado = KeyboardType.Ascii
+                        )
+                        CampoContrasena(
+                            valor = nueva,
+                            onValorCambia = { nueva = it; errorNueva = null; errorConfirmar = null; mensaje = null },
+                            etiqueta = "Nueva contraseña",
+                            visible = nuevaVisible,
+                            onAlternarVisible = { nuevaVisible = !nuevaVisible },
+                            error = errorNueva
+                        )
+                        CampoContrasena(
+                            valor = confirmar,
+                            onValorCambia = { confirmar = it; errorConfirmar = null; mensaje = null },
+                            etiqueta = "Confirmar nueva contraseña",
+                            visible = confirmarVisible,
+                            onAlternarVisible = { confirmarVisible = !confirmarVisible },
+                            error = errorConfirmar
+                        )
+                        Text(
+                            "La contraseña debe incluir mayúscula, minúscula, número y un símbolo permitido.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        BotonPrincipal(
+                            texto = "Restablecer contraseña",
+                            onClick = ::restablecer,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        BotonSecundario(
+                            texto = "Usar otro correo",
+                            onClick = {
+                                tokenSolicitado = false
+                                token = ""
+                                nueva = ""
+                                confirmar = ""
+                                errorToken = null
+                                errorNueva = null
+                                errorConfirmar = null
+                                mensaje = null
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
@@ -134,78 +222,8 @@ fun RecuperarContrasenaScreen(onVolverLogin: () -> Unit, viewModel: LoginViewMod
             title = { Text(if (exito) "Operación completada" else "No fue posible continuar") },
             text = { Text(mensaje.orEmpty()) },
             confirmButton = {
-                TextButton(onClick = { mensaje = null }) {
-                    Text("Aceptar")
-                }
+                TextButton(onClick = { mensaje = null }) { Text("Aceptar") }
             }
         )
     }
 }
-
-
-
-/*
-package com.example.induzteckapp.ui.theme.screens
-
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.induzteckapp.viewmodel.LoginViewModel
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RecuperarContrasenaScreen(onVolverLogin: () -> Unit, viewModel: LoginViewModel = viewModel()) {
-    var correo by remember { mutableStateOf("") }
-    var token by remember { mutableStateOf("") }
-    var nueva by remember { mutableStateOf("") }
-    var confirmar by remember { mutableStateOf("") }
-    var tokenSolicitado by remember { mutableStateOf(false) }
-    var mensaje by remember { mutableStateOf<String?>(null) }
-    var tokenDev by remember { mutableStateOf<String?>(null) }
-    var exito by remember { mutableStateOf(false) }
-
-    Scaffold(topBar={ TopAppBar(title={Text("Recuperar contraseña")}, navigationIcon={
-        TextButton(onClick=onVolverLogin){Text("Volver")}
-    }) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement=Arrangement.spacedBy(14.dp)) {
-            Text("Solicita un enlace de recuperación. El token es de un solo uso y expira.")
-            if (!tokenSolicitado) {
-                OutlinedTextField(value=correo,onValueChange={correo=it;mensaje=null},
-                    label={Text("Correo registrado")},modifier=Modifier.fillMaxWidth(),singleLine=true,
-                    keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=KeyboardType.Email))
-                Button(onClick={
-                    viewModel.solicitarRecuperacion(correo){ ok,msg,dev ->
-                        exito=ok;mensaje=msg;tokenDev=dev;if(ok)tokenSolicitado=true
-                    }
-                },modifier=Modifier.fillMaxWidth()){Text("Enviar solicitud")}
-            } else {
-                OutlinedTextField(value=token,onValueChange={token=it},label={Text("Token de recuperación")},
-                    modifier=Modifier.fillMaxWidth())
-                OutlinedTextField(value=nueva,onValueChange={nueva=it},label={Text("Nueva contraseña")},
-                    visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth())
-                OutlinedTextField(value=confirmar,onValueChange={confirmar=it},label={Text("Confirmar contraseña")},
-                    visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth())
-                Button(onClick={
-                    viewModel.restablecerContrasena(token,nueva,confirmar){ok,msg->exito=ok;mensaje=msg}
-                },modifier=Modifier.fillMaxWidth()){Text("Restablecer contraseña")}
-            }
-            mensaje?.let { Text(it,color=if(exito) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
-            tokenDev?.let {
-                Text("TOKEN DE DESARROLLO (solo cuando MAIL_ENABLED=false):",fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
-                SelectionContainer { Text(it) }
-                Text("En producción el token se envía por correo y no se muestra en la aplicación.",
-                    style=MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-}
-*/

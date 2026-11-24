@@ -265,6 +265,16 @@ fun PerfilScreen(
                     )
 
                     OutlinedTextField(
+                        value = nombre,
+                        onValueChange = { viewModel.onNombreChanged(it) },
+                        label = { Text("Nombre") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        isError = errorNombre != null,
+                        supportingText = errorNombre?.let { { Text(it) } }
+                    )
+
+                    OutlinedTextField(
                         value = apellido,
                         onValueChange = { viewModel.onApellidoChanged(it) },
                         label = { Text("Apellidos (Opcional)") },

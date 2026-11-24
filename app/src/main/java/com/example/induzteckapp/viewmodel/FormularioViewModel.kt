@@ -21,7 +21,6 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
     private val patronNombre = Regex("^[\\p{L}][\\p{L} .'-]*$")
     private val patronCorreo = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
     private val patronTelefono = Regex("^[0-9]{8,12}$")
-    private val patronRut = Regex("^[0-9]{7,8}-?[0-9Kk]$")
 
     fun onRolSeleccionado(rol: RolUsuario) {
         _uiState.update { estado ->
@@ -175,25 +174,28 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
         return if (limpio.length < 2) limpio else "${limpio.dropLast(1)}-${limpio.last()}"
     }
 
-    private fun validarRut(valor: String): Boolean {
-        val limpio = valor.trim().replace(".", "").replace("-", "").uppercase()
-        if (!patronRut.matches(limpio)) return false
-        val cuerpo = limpio.dropLast(1)
-        var suma = 0
-        var factor = 2
-        for (digito in cuerpo.reversed()) {
-            suma += digito.digitToInt() * factor
-            factor = if (factor == 7) 2 else factor + 1
-        }
-        val dvCalculado = when (val resultado = 11 - suma % 11) {
-            11 -> '0'
-            10 -> 'K'
-            else -> resultado.digitToChar()
-        }
-        return limpio.last() == dvCalculado
-    }
 
     companion object {
+        private val patronRut = Regex("^[0-9]{7,8}-?[0-9Kk]$")
+
+        fun validarRut(valor: String): Boolean {
+            val limpio = valor.trim().replace(".", "").replace("-", "").uppercase()
+            if (!patronRut.matches(limpio)) return false
+            val cuerpo = limpio.dropLast(1)
+            var suma = 0
+            var factor = 2
+            for (digito in cuerpo.reversed()) {
+                suma += digito.digitToInt() * factor
+                factor = if (factor == 7) 2 else factor + 1
+            }
+            val dvCalculado = when (val resultado = 11 - suma % 11) {
+                11 -> '0'
+                10 -> 'K'
+                else -> resultado.digitToChar()
+            }
+            return limpio.last() == dvCalculado
+        }
+
         fun validarDatosEmpresa(giro: String, contactoNombre: String, contactoCargo: String): Map<String, String> {
             val errores = mutableMapOf<String, String>()
             val giroLimpio = giro.trim()
@@ -244,7 +246,6 @@ class FormularioViewModel(application: Application) : AndroidViewModel(applicati
     private val patronNombre = Regex("^[\\p{L}][\\p{L} .'-]*$")
     private val patronCorreo = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
     private val patronTelefono = Regex("^[0-9]{8,12}$")
-    private val patronRut = Regex("^[0-9]{7,8}-?[0-9Kk]$")
 
     fun onRolSeleccionado(rol: RolUsuario) {
         _uiState.update { estado ->

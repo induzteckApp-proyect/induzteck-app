@@ -53,8 +53,6 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
     private val patronTelefono = Regex("^[0-9]{8,12}$")
     private val patronGiro = Regex("^[\\p{L}][\\p{L} ]*$")
 
-    private val patronClave = Regex("^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
-
     init { cargarPerfil() }
 
     fun cargarPerfil() {
@@ -142,7 +140,7 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
     fun cambiarContrasena(actual: String, nueva: String, confirmar: String) {
         when {
             actual.isBlank() -> _mensajeState.value="Ingresa tu contraseña actual."
-            !patronClave.matches(nueva) -> _mensajeState.value="La nueva contraseña debe tener 8 a 72 caracteres, mayúscula, minúscula, número y símbolo."
+            !LoginViewModel.validarContrasena(nueva) -> _mensajeState.value="La nueva contraseña debe tener 8 a 72 caracteres, mayúscula, minúscula, número y símbolo."
             nueva != confirmar -> _mensajeState.value="La confirmación no coincide."
             actual == nueva -> _mensajeState.value="La nueva contraseña debe ser distinta de la actual."
             else -> viewModelScope.launch {
@@ -245,8 +243,6 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
     private val patronTexto = Regex("^[\\p{L}][\\p{L} .'-]*$")
     private val patronTelefono = Regex("^[0-9]{8,12}$")
     private val patronGiro = Regex("^[\\p{L}\\p{N}][\\p{L}\\p{N} .,'&()/-]*$")
-    private val patronClave = Regex("^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
-
     init { cargarPerfil() }
 
     fun cargarPerfil() {
@@ -328,7 +324,7 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
     fun cambiarContrasena(actual: String, nueva: String, confirmar: String) {
         when {
             actual.isBlank() -> _mensajeState.value="Ingresa tu contraseña actual."
-            !patronClave.matches(nueva) -> _mensajeState.value="La nueva contraseña debe tener 8 a 72 caracteres, mayúscula, minúscula, número y símbolo."
+            !LoginViewModel.validarContrasena(nueva) -> _mensajeState.value="La nueva contraseña debe tener 8 a 72 caracteres, mayúscula, minúscula, número y símbolo."
             nueva != confirmar -> _mensajeState.value="La confirmación no coincide."
             actual == nueva -> _mensajeState.value="La nueva contraseña debe ser distinta de la actual."
             else -> viewModelScope.launch {
