@@ -7,7 +7,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    // Se configura con -PINDUZTEK_API_URL=... al compilar.
     const val BASE_URL = com.example.induzteckapp.BuildConfig.API_BASE_URL
 
     @Volatile private var api: UsuarioApi? = null
