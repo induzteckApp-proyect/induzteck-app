@@ -8,6 +8,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
     // Se configura con -PINDUZTEK_API_URL=... al compilar.
+    // OJO! Podemos seguir quedandonos con API_BASE_URL, el cual tiene el puerto publico del
+    // puerto 8090 del Api Gateway en las pripeodades graddle, el profesor dijo que era valido
     const val BASE_URL = com.example.induzteckapp.BuildConfig.API_BASE_URL
 
     @Volatile private var api: UsuarioApi? = null

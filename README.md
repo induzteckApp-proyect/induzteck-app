@@ -29,10 +29,9 @@ Aplicación móvil desarrollada en **Android Studio** con **Jetpack Compose** y 
    * Arquitectura orientada a eventos y estado unidireccional utilizando **`StateFlow`** y `collectAsStateWithLifecycle()`.
    * ViewModels independientes que encapsulan la lógica de negocio y validación desacoplada de la interfaz gráfica.
 
-5. **Almacenamiento Local (SQLite y SharedPreferences):**
-   * Base de datos relacional nativa en SQLite con **16 tablas normalizadas** (`InduztekDbHelper`), datos semilla precargados, restricciones de claves foráneas e integridad transaccional.
-   * Persistencia del avatar de usuario en formato **BLOB** dentro de SQLite.
-   * Control de sesiones activas mediante `SharedPreferences`.
+5. **Almacenamiento Seguro (SharedPreferences y Android Keystore):**
+   * Control de sesiones activas mediante `InduztekPreferencias`.
+   * Almacenamiento cifrado de tokens JWT mediante `TokenSeguroStorage` protegido con Android Keystore.
 
 6. **Uso de Recursos Nativos del Dispositivo:**
    * **Cámara y Galería:** Selección de imágenes de galería o captura directa con la cámara nativa con compresión automática a JPEG (`ConvertidorImagen`) para avatares de perfil.

@@ -13,13 +13,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
+    companion object {
+        private val patronContrasena = Regex("^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
+
+        fun validarContrasena(valor: String): Boolean = patronContrasena.matches(valor)
+    }
+
     private val repository = UsuarioRepository(application)
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     private val patronCorreo = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
-    private val patronContrasena =
-        Regex("^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
 
     fun onCorreoCambia(valor: String) {
         _uiState.update { it.copy(correo = valor, errorCorreo = null, mensajeError = null) }
@@ -78,7 +82,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     fun restablecerContrasena(token: String, nueva: String, confirmar: String, onResultado: (Boolean, String) -> Unit) {
         if (token.isBlank()) { onResultado(false, "Ingresa el código recibido por correo."); return }
-        if (!patronContrasena.matches(nueva)) {
+        if (!validarContrasena(nueva)) {
             onResultado(false, "La clave debe tener 8 a 72 caracteres, mayúscula, minúscula, número y símbolo.")
             return
         }
@@ -91,7 +95,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     fun activarCuenta(token: String, nueva: String, confirmar: String, onResultado: (Boolean, String) -> Unit) {
         if (token.isBlank()) { onResultado(false, "Ingresa el código de invitación."); return }
-        if (!patronContrasena.matches(nueva)) {
+        if (!validarContrasena(nueva)) {
             onResultado(false, "La clave debe tener 8 a 72 caracteres, mayúscula, minúscula, número y símbolo.")
             return
         }
@@ -124,13 +128,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
+    companion object {
+        private val patronContrasena = Regex("^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
+
+        fun validarContrasena(valor: String): Boolean = patronContrasena.matches(valor)
+    }
+
     private val repository = UsuarioRepository(application)
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     private val patronCorreo = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
-    private val patronContrasena =
-        Regex("^(?=.*\\p{Lu})(?=.*\\p{Ll})(?=.*[0-9])(?=.*[!@#$%&*()_+\\-=\\[\\]{};':\\\\|,.<>/?¿¡~^])\\S{8,72}$")
 
     fun onCorreoCambia(valor: String) {
         _uiState.update { it.copy(correo = valor, errorCorreo = null, mensajeError = null) }
@@ -189,7 +197,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     fun restablecerContrasena(token: String, nueva: String, confirmar: String, onResultado: (Boolean, String) -> Unit) {
         if (token.isBlank()) { onResultado(false, "Ingresa el token recibido por correo."); return }
-        if (!patronContrasena.matches(nueva)) {
+        if (!validarContrasena(nueva)) {
             onResultado(false, "La clave debe tener 8 a 72 caracteres, mayúscula, minúscula, número y símbolo.")
             return
         }
@@ -202,7 +210,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     fun activarCuenta(token: String, nueva: String, confirmar: String, onResultado: (Boolean, String) -> Unit) {
         if (token.isBlank()) { onResultado(false, "Ingresa el token de invitación."); return }
-        if (!patronContrasena.matches(nueva)) {
+        if (!validarContrasena(nueva)) {
             onResultado(false, "La clave debe tener 8 a 72 caracteres, mayúscula, minúscula, número y símbolo.")
             return
         }
