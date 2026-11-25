@@ -45,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -55,6 +54,7 @@ import com.example.induzteckapp.model.RolUsuario
 import com.example.induzteckapp.ui.theme.components.AvatarCircular
 import com.example.induzteckapp.ui.theme.components.BotonPrincipal
 import com.example.induzteckapp.ui.theme.components.BotonSecundario
+import com.example.induzteckapp.ui.theme.components.CampoContrasena
 import com.example.induzteckapp.ui.theme.theme.MiRegistroTheme
 import com.example.induzteckapp.viewmodel.PerfilViewModel
 
@@ -86,6 +86,9 @@ fun PerfilScreen(
     var claveActual by remember { mutableStateOf("") }
     var claveNueva by remember { mutableStateOf("") }
     var confirmarClave by remember { mutableStateOf("") }
+    var claveActualVisible by remember { mutableStateOf(false) }
+    var claveNuevaVisible by remember { mutableStateOf(false) }
+    var confirmarClaveVisible by remember { mutableStateOf(false) }
     var mostrarOpcionesAvatar by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -345,20 +348,26 @@ fun PerfilScreen(
                     Text("Seguridad de la cuenta", style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     HorizontalDivider()
-                    OutlinedTextField(
-                        value = claveActual, onValueChange = { claveActual = it },
-                        label = { Text("Contraseña actual") }, modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = PasswordVisualTransformation(), singleLine = true
+                    CampoContrasena(
+                        valor = claveActual,
+                        onValorCambia = { claveActual = it },
+                        etiqueta = "Contraseña actual",
+                        visible = claveActualVisible,
+                        onAlternarVisible = { claveActualVisible = !claveActualVisible }
                     )
-                    OutlinedTextField(
-                        value = claveNueva, onValueChange = { claveNueva = it },
-                        label = { Text("Nueva contraseña") }, modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = PasswordVisualTransformation(), singleLine = true
+                    CampoContrasena(
+                        valor = claveNueva,
+                        onValorCambia = { claveNueva = it },
+                        etiqueta = "Nueva contraseña",
+                        visible = claveNuevaVisible,
+                        onAlternarVisible = { claveNuevaVisible = !claveNuevaVisible }
                     )
-                    OutlinedTextField(
-                        value = confirmarClave, onValueChange = { confirmarClave = it },
-                        label = { Text("Confirmar nueva contraseña") }, modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = PasswordVisualTransformation(), singleLine = true
+                    CampoContrasena(
+                        valor = confirmarClave,
+                        onValorCambia = { confirmarClave = it },
+                        etiqueta = "Confirmar nueva contraseña",
+                        visible = confirmarClaveVisible,
+                        onAlternarVisible = { confirmarClaveVisible = !confirmarClaveVisible }
                     )
                     Text("Mínimo 8 caracteres, mayúscula, minúscula, número y símbolo.",
                         style = MaterialTheme.typography.bodySmall,

@@ -136,13 +136,16 @@ fun DetalleRespaldoDigitalScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
                                     text = "Protocolo N° ${p.numeroProtocolo}",
                                     style = MaterialTheme.typography.titleMedium,
@@ -157,7 +160,7 @@ fun DetalleRespaldoDigitalScreen(
                             }
                             Column(
                                 horizontalAlignment = Alignment.End,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 if (esTecnico) {
                                     EstadoRealBadge(codigo = p.estadoCodigo)
@@ -177,7 +180,7 @@ fun DetalleRespaldoDigitalScreen(
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
                             text = "Información General",
@@ -186,7 +189,7 @@ fun DetalleRespaldoDigitalScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                         HorizontalDivider()
-                        ItemDetalleRow(label = "Empresa  TAG", value = "${p.equipoTag} (${p.tipoEquipo})")
+                        ItemDetalleRow(label = "Equipo / TAG", value = "${p.equipoTag} (${p.tipoEquipo})")
                         ItemDetalleRow(label = "Técnico Responsable", value = p.tecnicoResponsable)
                         ItemDetalleRow(label = "Temperatura Ambiente", value = p.temperatura)
                         ItemDetalleRow(label = "Humedad Relativa", value = p.humedad)
@@ -255,8 +258,9 @@ fun DetalleRespaldoDigitalScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
                             text = "Respaldo Digital Oficial Induztek",
@@ -280,19 +284,25 @@ fun DetalleRespaldoDigitalScreen(
 @Composable
 private fun ItemDetalleRow(label: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
         )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End
         )
     }
 }
@@ -302,11 +312,14 @@ private fun ItemPruebaRow(prueba: PruebaDetalle) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             Text(
                 text = prueba.tipoPruebaNombre,
                 style = MaterialTheme.typography.bodyMedium,
@@ -318,11 +331,12 @@ private fun ItemPruebaRow(prueba: PruebaDetalle) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "Lecturas:\\n${prueba.valorMedido}",
+                text = "Lecturas: ${prueba.valorMedido}",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold
             )
         }
+        Spacer(modifier = Modifier.width(8.dp))
         ResultadoClienteBadge(resultado = prueba.resultado)
     }
 }

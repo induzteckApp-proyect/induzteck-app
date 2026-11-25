@@ -70,9 +70,7 @@ private fun LoginContent(
             BotonPrincipal(texto=if(cargando) "Conectando…" else "Iniciar sesión",onClick=onLogin,
                 modifier=Modifier.fillMaxWidth(),habilitado=!cargando)
             if(cargando) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
-            TextButton(onClick=onActivar,modifier=Modifier.align(Alignment.CenterHorizontally)){
-                Text("Tengo un token de invitación para activar mi cuenta")
-            }
+            BotonSecundario(texto="Activar Cuenta",onClick=onActivar,modifier=Modifier.fillMaxWidth())
             Text("Las cuentas son creadas por un administrador de Induztek.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier=Modifier.align(Alignment.CenterHorizontally))
